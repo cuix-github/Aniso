@@ -109,7 +109,15 @@ python tools\flythrough.py data\train\point_cloud_7000.ply data\tandt\train\spar
 start renders\train_orbit.mp4
 ```
 
-`--mode orbit` circles the subject along a smoothed version of the photographers' path, always looking at the point the photos look at most. `--mode tour` walks through the photo cameras themselves, chained by nearness in position and direction and smoothed, which suits captures taken inside a room. `--seconds`, `--fps`, `--size`, and `--fov` adjust the clip. Behind it, `aniso path` renders one frame per camera pose and streams raw frames straight into ffmpeg.
+It circles the subject along a smoothed version of the photographers' path, always looking at the point the photos look at most. `--seconds`, `--fps`, `--size`, and `--fov` adjust the clip. Behind it, `aniso path` renders one frame per camera pose and streams raw frames straight into ffmpeg.
+
+For directed video, `tools\shots.py` renders a shot list: slow moves (straight dollies or horizontal arcs) with one fixed point of interest per shot, eased in and out so the camera never jerks, and hard cuts between shots. A shot can include a *reveal*, which shrinks every Gaussian partway through and grows it back, so the scene visibly comes apart into the ellipsoids it is made of: large flat ones on a tabletop, tiny ones on cereal rings, black gaps between them. `tools\shots\kitchen.json` is a 68-second shot list for the splat kitchen trained in `pipeline\`:
+
+```
+python tools\shots.py data\kitchen\train_30k\point_cloud.ply tools\shots\kitchen.json renders\kitchen_shots.mp4
+```
+
+The reveal is also available on its own, as the `splatScale` render option and as an optional tenth column in `aniso path` files.
 
 To see the scene from a moving camera, render a run of consecutive photo cameras into a GIF (about half a minute for 60 frames):
 

@@ -208,13 +208,15 @@ int pathCmd(const std::string& plyPath, const std::string& pathFile, int width, 
     const aniso::Scene scene = aniso::loadPly(plyPath);
     std::ifstream in(pathFile);
     if (!in) throw std::runtime_error("cannot open " + pathFile);
-    std::vector<std::array<float, 9>> poses;
+    // Nine numbers per line (position, forward, up), and an optional tenth: the splat scale.
+    std::vector<std::array<float, 10>> poses;
     for (std::string line; std::getline(in, line);) {
         if (line.empty() || line[0] == '#') continue;
         std::istringstream s(line);
-        std::array<float, 9> p{};
-        for (float& v : p) s >> v;
+        std::array<float, 10> p{};
+        for (int k = 0; k < 9; ++k) s >> p[k];
         if (!s) throw std::runtime_error("bad path line: " + line);
+        if (!(s >> p[9])) p[9] = 1.0f;
         poses.push_back(p);
     }
 #ifdef _WIN32
@@ -232,6 +234,7 @@ int pathCmd(const std::string& plyPath, const std::string& pathFile, int width, 
     for (const auto& p : poses) {
         const aniso::Camera cam = poseCamera({p[0], p[1], p[2]}, {p[3], p[4], p[5]}, {p[6], p[7], p[8]}, width,
                                              height, hfov);
+        options.splatScale = p[9];
 #ifdef ANISO_WITH_CUDA
         const aniso::Image img = renderer ? renderer->render(cam, nullptr, options) : aniso::render(scene, cam, nullptr, options);
 #else

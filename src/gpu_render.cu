@@ -43,6 +43,7 @@ struct CameraParams {
     float fx, fy, cx, cy;
     int width, height, tilesX, tilesY;
     int shDegree, shCoeffs;
+    float splatScale;
 };
 
 __constant__ float kC1 = 0.4886025119029199f;
@@ -100,7 +101,7 @@ __global__ void preprocess(int n, const float3* pos, const float3* scale, const 
     const float Rq[3][3] = {{1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)},
                             {2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)},
                             {2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)}};
-    const float s[3] = {scale[i].x, scale[i].y, scale[i].z};
+    const float s[3] = {scale[i].x * cam.splatScale, scale[i].y * cam.splatScale, scale[i].z * cam.splatScale};
     float M[3][3], S[3][3];
     for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c) M[r][c] = Rq[r][c] * s[c];
@@ -311,6 +312,7 @@ Image GpuRenderer::render(const Camera& camera, RenderStats* stats, const Render
     cp.tilesY = (camera.height + kTile - 1) / kTile;
     cp.shDegree = std::min(options.shDegree, m.shDegree);
     cp.shCoeffs = m.shCoeffs;
+    cp.splatScale = options.splatScale;
     const int tileCount = cp.tilesX * cp.tilesY;
 
     CU(cudaEventRecord(m.ev[0]));

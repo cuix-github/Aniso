@@ -27,6 +27,9 @@ struct RenderStats {
 // Background is black. Tiles are blended in parallel across all hardware threads.
 struct RenderOptions {
     int shDegree = 3;
+    // Multiplies every Gaussian's size. Below 1 the scene breaks apart into the individual
+    // ellipsoids it is made of; a visualization, not a physical change.
+    float splatScale = 1.0f;
 };
 
 Image render(const Scene& scene, const Camera& camera, RenderStats* stats = nullptr,

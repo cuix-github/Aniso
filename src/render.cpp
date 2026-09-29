@@ -36,7 +36,8 @@ void rotation(const Quat& q, float M[3][3]) {
 }
 
 // Projects one Gaussian. Returns false if it is culled.
-bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, const Vec3& eye, int shDegree, Splat& s) {
+bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, const Vec3& eye, int shDegree, float splatScale,
+               Splat& s) {
     const Gaussian& g = scene.gaussians[i];
     Vec3 p = cam.toCamera(g.position);
     if (p.z < 0.2f) return false;
@@ -44,7 +45,7 @@ bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, const Vec3&
     // 3D covariance: Sigma = M M^T with M = R * diag(scale).
     float R[3][3];
     rotation(g.rotation, R);
-    const float sc[3] = {g.scale.x, g.scale.y, g.scale.z};
+    const float sc[3] = {g.scale.x * splatScale, g.scale.y * splatScale, g.scale.z * splatScale};
     float M[3][3];
     for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c) M[r][c] = R[r][c] * sc[c];
@@ -147,7 +148,7 @@ Image render(const Scene& scene, const Camera& cam, RenderStats* stats, const Re
     std::vector<char> alive(scene.size(), 0);
     parallelFor((scene.size() + 4095) / 4096, [&](std::size_t chunk) {
         const std::size_t end = std::min(scene.size(), (chunk + 1) * 4096);
-        for (std::size_t i = chunk * 4096; i < end; ++i) alive[i] = makeSplat(scene, i, cam, eye, options.shDegree, splats[i]) ? 1 : 0;
+        for (std::size_t i = chunk * 4096; i < end; ++i) alive[i] = makeSplat(scene, i, cam, eye, options.shDegree, options.splatScale, splats[i]) ? 1 : 0;
     });
     std::vector<std::uint32_t> order;
     for (std::size_t i = 0; i < scene.size(); ++i)

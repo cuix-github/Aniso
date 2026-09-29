@@ -2,18 +2,15 @@
 when available) feeding frames straight into ffmpeg.
 
     python tools/flythrough.py <scene.ply> <colmap-sparse-dir> <out.mp4> --mode orbit
-    python tools/flythrough.py <scene.ply> <colmap-sparse-dir> <out.mp4> --mode tour
-
+    
 The path comes from the scene's own photo cameras, so it stays where the scene was seen:
   orbit  follows the photographers' circle around the subject, smoothed, always looking at the
          point the photos look at most (for object-centred captures such as the train)
-  tour   walks through the photo cameras themselves, chained by nearness in position and view
-         direction and smoothed (for captures taken inside a room, such as the kitchen, where
-         every photo camera is known to see real content)
+
+For directed, slow shots with a fixed point of interest per shot, use tools/shots.py.
 
 Options: --size 1920x1080, --fps 60, --seconds 12, --fov 70 (horizontal, degrees), --cpu,
---radius R (orbit: fraction of the photos' radius, default 1.0), --stride N (tour: use every
-Nth camera of the chain as a keyframe, default 6). Needs numpy, ffmpeg on the PATH, and build-cuda/aniso.exe (or set ANISO).
+--radius R (orbit: fraction of the photos' radius, default 1.0). Needs numpy, ffmpeg on the PATH, and build-cuda/aniso.exe (or set ANISO).
 """
 import argparse
 import os
@@ -97,49 +94,12 @@ def orbit_path(centres, forwards, up, frames, radius):
     return pos, fwd
 
 
-def tour_path(centres, forwards, frames, stride):
-    """A walk through the photo cameras themselves, each of which is known to see the scene:
-    chain them greedily by nearness in both position and viewing direction, keep every
-    `stride`-th camera of the chain as a keyframe, and smooth positions and directions so the
-    camera glides from view to view."""
-    spread = np.percentile(np.linalg.norm(centres - centres.mean(0), axis=1), 90)
-    feat = np.concatenate([centres / spread, 0.8 * forwards], 1)
-    left = list(range(len(centres)))
-    cur = int(np.argmin(np.linalg.norm(centres - centres.mean(0), axis=1)))
-    chain = [cur]
-    left.remove(cur)
-    while left:
-        d = np.linalg.norm(feat[left] - feat[cur], axis=1)
-        cur = left[int(np.argmin(d))]
-        if d.min() > 1.2:  # the rest are far from anything visited: stop rather than jump
-            break
-        chain.append(cur)
-        left.remove(cur)
-    keys = chain[::stride]
-    kp, kf = centres[keys], forwards[keys]
-    t = np.linspace(0, len(keys) - 1, frames)
-    i0 = np.floor(t).astype(int)
-    i1 = np.minimum(i0 + 1, len(keys) - 1)
-    u = (t - i0)[:, None]
-    u = u * u * (3 - 2 * u)  # ease between keyframes
-    pos = kp[i0] * (1 - u) + kp[i1] * u
-    fwd = kf[i0] * (1 - u) + kf[i1] * u
-    k = max(3, frames // 40) | 1
-    for arr in (pos, fwd):
-        for _ in range(2):
-            pad = np.concatenate([np.repeat(arr[:1], k, 0), arr, np.repeat(arr[-1:], k, 0)])
-            arr[:] = np.stack([np.convolve(pad[:, j], np.ones(k) / k, mode="same")[k:-k] for j in range(3)], 1)
-    fwd /= np.linalg.norm(fwd, axis=1, keepdims=True)
-    return pos, fwd, len(chain)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("scene")
     ap.add_argument("sparse")
     ap.add_argument("out")
-    ap.add_argument("--mode", choices=["orbit", "tour"], default="orbit")
-    ap.add_argument("--stride", type=int, default=6)
+    ap.add_argument("--mode", choices=["orbit"], default="orbit")
     ap.add_argument("--size", default="1920x1080")
     ap.add_argument("--fps", type=int, default=60)
     ap.add_argument("--seconds", type=float, default=12)
@@ -152,11 +112,7 @@ def main():
     up = -downs.mean(0)
     up /= np.linalg.norm(up)
     frames = int(round(a.fps * a.seconds))
-    if a.mode == "orbit":
-        pos, fwd = orbit_path(centres, forwards, up, frames, a.radius or 1.0)
-    else:
-        pos, fwd, used = tour_path(centres, forwards, frames, a.stride)
-        print("tour through %d of %d photo cameras" % (used, len(centres)), flush=True)
+    pos, fwd = orbit_path(centres, forwards, up, frames, a.radius or 1.0)
 
     exe = os.environ.get("ANISO", os.path.join("build-cuda", "aniso.exe"))
     w, h = (int(v) for v in a.size.split("x"))
