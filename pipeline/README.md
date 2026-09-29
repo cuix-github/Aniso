@@ -62,6 +62,17 @@ It puts NVIDIA's CUDA 12.8 components in `.toolchain\` and a Python environment 
 
 Where splats struggle here: thin edges, such as tile grout and object outlines, carry most of the error; soft blotches appear on large flat areas like the floor; and objects much closer to the camera than any training view came, such as a chair back in the worst view, smear into streaks. Splats are only as good as the distances the training saw.
 
+**How many views does it need?** The same 40 held-out views, with training on fewer views spread evenly around the room (`--train-views N`), 30,000 steps each:
+
+| Training views | Held-out PSNR | PSNR on its own training views | Gaussians |
+|---|---|---|---|
+| 35 | 22.4 dB | 40.0 dB | 1.55 M |
+| 70 | 26.4 dB | 36.7 dB | 1.81 M |
+| 140 | 29.1 dB | 37.5 dB | 2.14 M |
+| 280 | 29.9 dB | 35.0 dB | 2.19 M |
+
+Quality climbs steeply up to about 140 views and then flattens: doubling to 280 adds under 1 dB. With few views the scene fits its training views almost perfectly and generalizes poorly; the gap between the two columns is overfitting, and it narrows as views are added. (Training PSNR is from the last logged step, one view each, so it is indicative only.)
+
 On the CPU, Aniso needs about 0.85 seconds per full 1280×720 frame of the kitchen, which makes walking choppy; the CUDA renderer is the fix.
 
 ## Decisions and why

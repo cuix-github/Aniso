@@ -136,6 +136,8 @@ def main():
     ap.add_argument("--test-every", type=int, default=8)
     ap.add_argument("--sh-degree", type=int, default=3)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--train-views", type=int, default=0,
+                    help="train on only this many views, spread evenly; the held-out set is unchanged")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.manual_seed(a.seed)
@@ -144,6 +146,9 @@ def main():
     views, xyz, rgb = load_dataset(a.dataset, dev)
     test = [v for i, v in enumerate(views) if i % a.test_every == 0]
     train = [v for i, v in enumerate(views) if i % a.test_every != 0]
+    if 0 < a.train_views < len(train):
+        pick = np.linspace(0, len(train) - 1, a.train_views).round().astype(int)
+        train = [train[k] for k in pick]
     with open(os.path.join(a.out, "held_out.txt"), "w") as f:
         f.write("\n".join(v["name"] for v in test) + "\n")
 
