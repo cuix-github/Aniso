@@ -1,0 +1,17 @@
+# Build output
+build/
+out/
+
+# Downloaded and captured scenes, renders, clips: large, never committed
+data/
+renders/
+
+# Editors
+.vs/
+.vscode/
+*.user
+
+# Python
+__pycache__/
+*.pyc
+.venv/
