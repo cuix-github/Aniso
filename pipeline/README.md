@@ -45,6 +45,25 @@ It puts NVIDIA's CUDA 12.8 components in `.toolchain\` and a Python environment 
    build\Release\aniso_viewer.exe data\kitchen\train_30k\point_cloud.ply data\kitchen\dataset\sparse\0 view_000.png
    ```
 
+6. **Score it independently with Aniso**: renders every held-out view with Aniso's own renderer, scores it against the true image and against gsplat's render of the same splats, and makes a sheet of true | Aniso | difference:
+
+   ```
+   python pipeline\eval_aniso.py data\kitchen\dataset data\kitchen\train_30k --sheet 6
+   ```
+
+## First results (2026-09-29)
+
+320 views at 960×540, 280 trained and 40 held out. Training took 6.6 minutes on an RTX 5090 for 30,000 steps and grew the scene from 150,000 starting points to 2.19 million Gaussians (544 MB).
+
+| Held-out measure | Value |
+|---|---|
+| Aniso render vs Maya's true image | 29.9 dB mean, 21.1 worst, 34.6 best |
+| Aniso vs gsplat, same splats | 66.3 dB (effectively identical) |
+
+Where splats struggle here: thin edges, such as tile grout and object outlines, carry most of the error; soft blotches appear on large flat areas like the floor; and objects much closer to the camera than any training view came, such as a chair back in the worst view, smear into streaks. Splats are only as good as the distances the training saw.
+
+On the CPU, Aniso needs about 0.85 seconds per full 1280×720 frame of the kitchen, which makes walking choppy; the CUDA renderer is the fix.
+
 ## Decisions and why
 
 - **No COLMAP run.** COLMAP recovers unknown cameras from real photos. Maya placed every camera, so they are known exactly and are written straight into COLMAP's file format, which trainers read. The starting points come from the mesh vertices instead of a reconstruction.
