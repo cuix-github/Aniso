@@ -11,9 +11,11 @@
 //   its view-independent colour, nearest in front. If the camera maths is right, the dots
 //   outline the same view as the photo.
 //
-// aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N]
+// aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree D]
 //   Renders the scene from that photo's camera, optionally at a different width (the
-//   Tanks and Temples photos are half the recorded camera size, so --width 980 matches them).
+//   Tanks and Temples photos are half the recorded camera size, so --width 980 matches them)
+//   and with view-dependent colour limited to degree D (default 3, the full colour; 0 is the
+//   view-independent colour only).
 
 #include "aniso/camera.h"
 #include "aniso/image.h"
@@ -125,7 +127,7 @@ int dots(const std::string& plyPath, const std::string& sparseDir, const std::st
 }
 
 int renderCmd(const std::string& plyPath, const std::string& sparseDir, const std::string& imageName,
-              const std::string& outPath, int width) {
+              const std::string& outPath, int width, int shDegree) {
     const aniso::Scene scene = aniso::loadPly(plyPath);
     const auto cams = aniso::loadColmapCameras(sparseDir);
     const auto it = std::find_if(cams.begin(), cams.end(), [&](const aniso::Camera& c) { return c.imageName == imageName; });
@@ -133,10 +135,12 @@ int renderCmd(const std::string& plyPath, const std::string& sparseDir, const st
     const aniso::Camera cam = width > 0 ? aniso::resized(*it, width) : *it;
 
     aniso::RenderStats st;
-    const aniso::Image img = aniso::render(scene, cam, &st);
+    aniso::RenderOptions options;
+    options.shDegree = shDegree;
+    const aniso::Image img = aniso::render(scene, cam, &st, options);
     aniso::writePng(outPath, img);
-    std::printf("%s: %dx%d, %zu splats, %zu splat-tile pairs\n", outPath.c_str(), cam.width, cam.height, st.visible,
-                st.tilePairs);
+    std::printf("%s: %dx%d, SH degree %d, %zu splats, %zu splat-tile pairs\n", outPath.c_str(), cam.width, cam.height,
+                std::min(shDegree, scene.shDegree), st.visible, st.tilePairs);
     std::printf("  project %.0f ms, sort and bin %.0f ms, blend %.0f ms, total %.0f ms\n", st.projectMs, st.sortMs,
                 st.blendMs, st.projectMs + st.sortMs + st.blendMs);
     return 0;
@@ -150,9 +154,15 @@ int main(int argc, char** argv) {
         if (args.size() == 2 && args[0] == "info") return info(args[1]);
         if (args.size() == 2 && args[0] == "cameras") return cameras(args[1]);
         if (args.size() == 5 && args[0] == "dots") return dots(args[1], args[2], args[3], args[4]);
-        if (args.size() == 5 && args[0] == "render") return renderCmd(args[1], args[2], args[3], args[4], 0);
-        if (args.size() == 7 && args[0] == "render" && args[5] == "--width")
-            return renderCmd(args[1], args[2], args[3], args[4], std::stoi(args[6]));
+        if (args.size() >= 5 && args.size() % 2 == 1 && args[0] == "render") {
+            int width = 0, shDegree = 3;
+            for (std::size_t k = 5; k + 1 < args.size(); k += 2) {
+                if (args[k] == "--width") width = std::stoi(args[k + 1]);
+                else if (args[k] == "--sh-degree") shDegree = std::stoi(args[k + 1]);
+                else throw std::runtime_error("unknown option " + args[k]);
+            }
+            return renderCmd(args[1], args[2], args[3], args[4], width, shDegree);
+        }
     } catch (const std::exception& e) {
         std::fprintf(stderr, "error: %s\n", e.what());
         return 1;
@@ -162,6 +172,6 @@ int main(int argc, char** argv) {
                  "  aniso info <scene.ply>\n"
                  "  aniso cameras <colmap-sparse-dir>\n"
                  "  aniso dots <scene.ply> <colmap-sparse-dir> <image-name> <out.png>\n"
-                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N]\n");
+                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree 0..3]\n");
     return 2;
 }

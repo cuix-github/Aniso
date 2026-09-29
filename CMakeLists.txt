@@ -16,6 +16,7 @@ add_library(aniso_core
     src/camera.cpp
     src/image.cpp
     src/render.cpp
+    src/sh.cpp
 )
 target_include_directories(aniso_core PUBLIC include)
 
@@ -34,3 +35,7 @@ add_test(NAME camera COMMAND test_camera)
 add_executable(test_render tests/test_render.cpp)
 target_link_libraries(test_render PRIVATE aniso_core)
 add_test(NAME render COMMAND test_render)
+
+add_executable(test_sh tests/test_sh.cpp)
+target_link_libraries(test_sh PRIVATE aniso_core)
+add_test(NAME sh COMMAND test_sh)

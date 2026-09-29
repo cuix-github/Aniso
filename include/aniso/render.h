@@ -22,8 +22,14 @@ struct RenderStats {
 //   3. For each pixel, blend its tile's splats front to back:
 //         alpha = min(0.99, opacity * exp(-0.5 * d^T conic d)),  C += T * alpha * colour,
 //         T *= 1 - alpha,  stopping once T would fall below 1e-4.
-// Colour here is the view-independent term only; the full spherical harmonics come next.
+// Colour is evaluated from the spherical harmonics along the direction from the camera centre to
+// each Gaussian, up to shDegree (0 gives the view-independent colour only).
 // Background is black. Tiles are blended in parallel across all hardware threads.
-Image render(const Scene& scene, const Camera& camera, RenderStats* stats = nullptr);
+struct RenderOptions {
+    int shDegree = 3;
+};
+
+Image render(const Scene& scene, const Camera& camera, RenderStats* stats = nullptr,
+             const RenderOptions& options = {});
 
 } // namespace aniso
