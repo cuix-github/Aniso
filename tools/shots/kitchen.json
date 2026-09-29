@@ -1,0 +1,21 @@
+{
+  "comment": "Directed shots for the splat kitchen trained from the Pixar Kitchen Set (metres, Y up). Only coordinates live here; the scene itself stays out of the repository.",
+  "up": [0, 1, 0],
+  "fov": 60,
+  "shots": [
+    {"name": "establishing push-in on the sink wall", "seconds": 8, "move": "dolly",
+     "from": [0.4, 1.65, 1.9], "to": [0.4, 1.5, 0.6], "look": [0.4, 1.0, -1.2]},
+    {"name": "glide along the counter", "seconds": 12, "move": "dolly",
+     "from": [-1.1, 1.4, 0.05], "to": [1.2, 1.4, 0.05], "look": [0.0, 1.05, -1.25]},
+    {"name": "approach the stove and fridge, reveal the Gaussians", "seconds": 14, "move": "dolly",
+     "from": [1.55, 1.45, 1.0], "to": [1.85, 1.25, 0.25], "look": [2.2, 1.1, -0.6],
+     "reveal": [0.45, 0.95, 0.15]},
+    {"name": "half orbit around the table, reveal again", "seconds": 16, "move": "arc",
+     "centre": [1.5, 0.8, 1.65], "radius": 1.4, "height": 1.55, "from_deg": 0, "to_deg": -150,
+     "look": [1.5, 0.85, 1.65], "reveal": [0.35, 0.75, 0.2]},
+    {"name": "close approach to the cereal bowl", "seconds": 10, "move": "dolly",
+     "from": [0.3, 1.25, 1.0], "to": [0.7, 1.0, 1.45], "look": [0.95, 0.86, 1.75]},
+    {"name": "pull back over the whole kitchen", "seconds": 8, "move": "dolly",
+     "from": [-1.2, 1.55, 1.6], "to": [-1.5, 1.75, 1.95], "look": [1.0, 0.9, -0.6]}
+  ]
+}

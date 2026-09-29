@@ -11,6 +11,11 @@
 //   its view-independent colour, nearest in front. If the camera maths is right, the dots
 //   outline the same view as the photo.
 //
+// aniso path <scene.ply> <path.txt> <WxH> <hfov-degrees> [--gpu] [--sh-degree D]
+//   Renders one frame per line of path.txt ("px py pz  fx fy fz  ux uy uz": position, forward,
+//   up, in world space) and streams raw RGB frames to stdout for a video encoder.
+//   tools/flythrough.py builds the path and pipes the frames into ffmpeg.
+//
 // aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree D]
 //   Renders the scene from that photo's camera, optionally at a different width (the
 //   Tanks and Temples photos are half the recorded camera size, so --width 980 matches them)
@@ -26,10 +31,19 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <memory>
 #include <cstdio>
+#include <cmath>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 namespace {
 
@@ -160,6 +174,81 @@ int renderCmd(const std::string& plyPath, const std::string& sparseDir, const st
     return 0;
 }
 
+// A camera looking along `forward` from `position`, with `up` roughly up, in COLMAP's convention
+// (x right, y down, z forward).
+aniso::Camera poseCamera(const aniso::Vec3& position, aniso::Vec3 f, const aniso::Vec3& up, int width, int height,
+                         double hfovDeg) {
+    auto norm = [](aniso::Vec3 v) {
+        const float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        return aniso::Vec3{v.x / l, v.y / l, v.z / l};
+    };
+    auto cross = [](aniso::Vec3 a, aniso::Vec3 b) {
+        return aniso::Vec3{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+    };
+    f = norm(f);
+    const aniso::Vec3 r = norm(cross(f, up)), d = cross(f, r);
+    const aniso::Vec3 rows[3] = {r, d, f};
+    aniso::Camera c;
+    c.width = width;
+    c.height = height;
+    c.fx = c.fy = 0.5 * width / std::tan(hfovDeg * 3.14159265358979 / 360.0);
+    c.cx = width / 2.0;
+    c.cy = height / 2.0;
+    for (int i = 0; i < 3; ++i) {
+        c.R[i][0] = rows[i].x; c.R[i][1] = rows[i].y; c.R[i][2] = rows[i].z;
+        c.t[i] = -(rows[i].x * position.x + rows[i].y * position.y + rows[i].z * position.z);
+    }
+    return c;
+}
+
+// aniso path: renders one frame per line of a path file and streams raw RGB (8 bits, rows top to
+// bottom, no header) to stdout, for piping into a video encoder.
+int pathCmd(const std::string& plyPath, const std::string& pathFile, int width, int height, double hfov, bool gpu,
+            int shDegree) {
+    const aniso::Scene scene = aniso::loadPly(plyPath);
+    std::ifstream in(pathFile);
+    if (!in) throw std::runtime_error("cannot open " + pathFile);
+    // Nine numbers per line (position, forward, up), and an optional tenth: the splat scale.
+    std::vector<std::array<float, 10>> poses;
+    for (std::string line; std::getline(in, line);) {
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream s(line);
+        std::array<float, 10> p{};
+        for (int k = 0; k < 9; ++k) s >> p[k];
+        if (!s) throw std::runtime_error("bad path line: " + line);
+        if (!(s >> p[9])) p[9] = 1.0f;
+        poses.push_back(p);
+    }
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+    aniso::RenderOptions options;
+    options.shDegree = shDegree;
+#ifdef ANISO_WITH_CUDA
+    std::unique_ptr<aniso::GpuRenderer> renderer;
+    if (gpu) renderer = std::make_unique<aniso::GpuRenderer>(scene);
+#else
+    if (gpu) throw std::runtime_error("this build has no CUDA renderer; build with build_cuda.bat");
+#endif
+    const auto t0 = std::chrono::steady_clock::now();
+    for (const auto& p : poses) {
+        const aniso::Camera cam = poseCamera({p[0], p[1], p[2]}, {p[3], p[4], p[5]}, {p[6], p[7], p[8]}, width,
+                                             height, hfov);
+        options.splatScale = p[9];
+#ifdef ANISO_WITH_CUDA
+        const aniso::Image img = renderer ? renderer->render(cam, nullptr, options) : aniso::render(scene, cam, nullptr, options);
+#else
+        const aniso::Image img = aniso::render(scene, cam, nullptr, options);
+#endif
+        std::fwrite(img.rgb.data(), 1, img.rgb.size(), stdout);
+    }
+    std::fflush(stdout);
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    std::fprintf(stderr, "rendered %zu frames at %dx%d on the %s in %.1f s (%.1f ms per frame, including output)\n",
+                 poses.size(), width, height, gpu ? "GPU" : "CPU", s, 1000.0 * s / std::max<std::size_t>(1, poses.size()));
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -168,6 +257,19 @@ int main(int argc, char** argv) {
         if (args.size() == 2 && args[0] == "info") return info(args[1]);
         if (args.size() == 2 && args[0] == "cameras") return cameras(args[1]);
         if (args.size() == 5 && args[0] == "dots") return dots(args[1], args[2], args[3], args[4]);
+        if (args.size() >= 5 && args[0] == "path") {
+            bool gpu = false;
+            int shDegree = 3;
+            for (std::size_t k = 5; k < args.size(); ++k) {
+                if (args[k] == "--gpu") gpu = true;
+                else if (args[k] == "--sh-degree" && k + 1 < args.size()) shDegree = std::stoi(args[++k]);
+                else throw std::runtime_error("unknown option " + args[k]);
+            }
+            const auto x = args[3].find('x');
+            if (x == std::string::npos) throw std::runtime_error("size must look like 1920x1080");
+            return pathCmd(args[1], args[2], std::stoi(args[3].substr(0, x)), std::stoi(args[3].substr(x + 1)),
+                           std::stod(args[4]), gpu, shDegree);
+        }
         if (args.size() >= 5 && args[0] == "render") {
             int width = 0, shDegree = 3;
             bool gpu = false;
@@ -188,6 +290,7 @@ int main(int argc, char** argv) {
                  "  aniso info <scene.ply>\n"
                  "  aniso cameras <colmap-sparse-dir>\n"
                  "  aniso dots <scene.ply> <colmap-sparse-dir> <image-name> <out.png>\n"
-                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree 0..3] [--gpu]\n");
+                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree 0..3] [--gpu]\n"
+                 "  aniso path <scene.ply> <path.txt> <WxH> <hfov-degrees> [--gpu] [--sh-degree 0..3]   (raw RGB to stdout)\n");
     return 2;
 }
