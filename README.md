@@ -6,7 +6,7 @@ A Gaussian-splat scene is millions of soft, anisotropic 3D Gaussians, each with 
 
 ## Status
 
-Four steps work. **Loading**: `aniso info` reads a scene trained by the reference 3DGS code; its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians). **Cameras**: `aniso dots` projects every Gaussian's centre through a photo's camera; the dots land on the train's lettering. **Rendering**: `aniso render` draws the scene from any photo's camera on the CPU, in about 0.4 seconds at 980×545 across all cores. **View-dependent colour**: the full degree-3 spherical harmonics, so colour changes with the viewing angle.
+Four steps work. **Loading**: `aniso info` reads a scene trained by the reference 3DGS code; its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians). **Cameras**: `aniso dots` projects every Gaussian's centre through a photo's camera; the dots land on the train's lettering. **Rendering**: `aniso render` draws the scene from any photo's camera on the CPU, in about 0.3 seconds at 980×545 across all cores. **Walking**: `aniso_viewer` opens a window to fly through the scene like a first-person game. **View-dependent colour**: the full degree-3 spherical harmonics, so colour changes with the viewing angle.
 
 Against the real photos, at the photos' size (PSNR, higher is closer):
 
@@ -76,6 +76,14 @@ build\Release\aniso.exe render data\train\point_cloud_7000.ply data\tandt\train\
 python tools\diff.py renders\r_sh0.png renders\r_sh3.png renders\diff_sh.png
 start renders\diff_sh.png
 ```
+
+To walk through the scene yourself:
+
+```
+build\Release\aniso_viewer.exe data\train\point_cloud_7000.ply data\tandt\train\sparse\0 00001.jpg
+```
+
+W A S D move, Q and E go down and up, Shift moves four times faster, holding the right mouse button and dragging looks around, the mouse wheel changes walking speed, N and P jump to the next or previous photo camera, Esc quits. On the CPU, the viewer renders a quarter-width image while you move (about 10 frames per second) and sharpens to full resolution, 1280 wide, when you stop. The title bar shows the frame time and the nearest photo camera. Walk away from where the photographer stood, behind the train or up in the air, and the scene falls apart into floating fragments and smears: that is the edge of what the photos saw.
 
 To see the scene from a moving camera, render a run of consecutive photo cameras into a GIF (about half a minute for 60 frames):
 
