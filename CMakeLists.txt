@@ -13,6 +13,8 @@ endif()
 
 add_library(aniso_core
     src/ply_loader.cpp
+    src/camera.cpp
+    src/image.cpp
 )
 target_include_directories(aniso_core PUBLIC include)
 
@@ -23,3 +25,7 @@ enable_testing()
 add_executable(test_ply_loader tests/test_ply_loader.cpp)
 target_link_libraries(test_ply_loader PRIVATE aniso_core)
 add_test(NAME ply_loader COMMAND test_ply_loader)
+
+add_executable(test_camera tests/test_camera.cpp)
+target_link_libraries(test_camera PRIVATE aniso_core)
+add_test(NAME camera COMMAND test_camera)
