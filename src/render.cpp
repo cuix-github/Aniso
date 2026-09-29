@@ -6,13 +6,14 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <thread>
 #include <vector>
 
 namespace aniso {
 namespace {
 
-constexpr int kTile = 16;
+constexpr int kTile = 8;
 
 struct Splat {
     float u = 0, v = 0;                 // centre in pixels
@@ -114,6 +115,25 @@ void parallelFor(std::size_t n, Fn fn) {
     for (auto& th : pool) th.join();
 }
 
+// Least-significant-digit radix sort of splat indices by depth, 11 bits per pass.
+void radixSortByDepth(std::vector<std::uint32_t>& order, const std::vector<Splat>& splats) {
+    const std::size_t n = order.size();
+    std::vector<std::uint32_t> keys(n), keysTmp(n), idxTmp(n);
+    for (std::size_t i = 0; i < n; ++i) std::memcpy(&keys[i], &splats[order[i]].depth, sizeof(float));
+    for (int shift = 0; shift < 32; shift += 11) {
+        std::uint32_t count[2049] = {};
+        for (std::size_t i = 0; i < n; ++i) ++count[((keys[i] >> shift) & 2047) + 1];
+        for (int b = 0; b < 2048; ++b) count[b + 1] += count[b];
+        for (std::size_t i = 0; i < n; ++i) {
+            const std::uint32_t dst = count[(keys[i] >> shift) & 2047]++;
+            keysTmp[dst] = keys[i];
+            idxTmp[dst] = order[i];
+        }
+        keys.swap(keysTmp);
+        order.swap(idxTmp);
+    }
+}
+
 } // namespace
 
 Image render(const Scene& scene, const Camera& cam, RenderStats* stats, const RenderOptions& options) {
@@ -136,33 +156,51 @@ Image render(const Scene& scene, const Camera& cam, RenderStats* stats, const Re
     st.projectMs = msSince(t0);
 
     // 2. Sort once by depth, then bin into tiles; each tile's list inherits the depth order.
+    // Depth is positive, and positive floats order the same as their bit patterns, so a
+    // radix sort on the bits is exact and much faster than a comparison sort.
     t0 = Clock::now();
-    std::sort(order.begin(), order.end(), [&](std::uint32_t x, std::uint32_t y) { return splats[x].depth < splats[y].depth; });
+    radixSortByDepth(order, splats);
     const int tilesX = (cam.width + kTile - 1) / kTile, tilesY = (cam.height + kTile - 1) / kTile;
-    std::vector<std::vector<std::uint32_t>> tiles(static_cast<std::size_t>(tilesX) * tilesY);
+    const std::size_t tileCount = static_cast<std::size_t>(tilesX) * tilesY;
+    auto tileRange = [&](const Splat& s, int& x0, int& y0, int& x1, int& y1) {
+        x0 = std::max(0, static_cast<int>(s.u - s.radius) / kTile);
+        y0 = std::max(0, static_cast<int>(s.v - s.radius) / kTile);
+        x1 = std::min(tilesX - 1, static_cast<int>(s.u + s.radius) / kTile);
+        y1 = std::min(tilesY - 1, static_cast<int>(s.v + s.radius) / kTile);
+    };
+    // Flat layout: tileStart[t] .. tileStart[t + 1] indexes this tile's splats in `binned`.
+    std::vector<std::uint32_t> tileStart(tileCount + 1, 0);
     for (std::uint32_t idx : order) {
-        const Splat& s = splats[idx];
-        const int x0 = std::max(0, static_cast<int>(s.u - s.radius) / kTile);
-        const int y0 = std::max(0, static_cast<int>(s.v - s.radius) / kTile);
-        const int x1 = std::min(tilesX - 1, static_cast<int>(s.u + s.radius) / kTile);
-        const int y1 = std::min(tilesY - 1, static_cast<int>(s.v + s.radius) / kTile);
+        int x0, y0, x1, y1;
+        tileRange(splats[idx], x0, y0, x1, y1);
         for (int ty = y0; ty <= y1; ++ty)
-            for (int tx = x0; tx <= x1; ++tx) tiles[static_cast<std::size_t>(ty) * tilesX + tx].push_back(idx);
-        st.tilePairs += static_cast<std::size_t>(x1 - x0 + 1) * (y1 - y0 + 1);
+            for (int tx = x0; tx <= x1; ++tx) ++tileStart[static_cast<std::size_t>(ty) * tilesX + tx + 1];
     }
+    for (std::size_t t = 0; t < tileCount; ++t) tileStart[t + 1] += tileStart[t];
+    std::vector<std::uint32_t> binned(tileStart[tileCount]);
+    std::vector<std::uint32_t> fill(tileStart.begin(), tileStart.end() - 1);
+    for (std::uint32_t idx : order) {
+        int x0, y0, x1, y1;
+        tileRange(splats[idx], x0, y0, x1, y1);
+        for (int ty = y0; ty <= y1; ++ty)
+            for (int tx = x0; tx <= x1; ++tx) binned[fill[static_cast<std::size_t>(ty) * tilesX + tx]++] = idx;
+    }
+    st.tilePairs = binned.size();
     st.sortMs = msSince(t0);
 
     // 3. Blend each tile's pixels front to back.
     t0 = Clock::now();
     Image img(cam.width, cam.height);
-    parallelFor(tiles.size(), [&](std::size_t t) {
+    parallelFor(tileCount, [&](std::size_t t) {
         const int tx = static_cast<int>(t % tilesX), ty = static_cast<int>(t / tilesX);
-        const auto& list = tiles[t];
+        const std::uint32_t* first = binned.data() + tileStart[t];
+        const std::uint32_t* last = binned.data() + tileStart[t + 1];
         for (int y = ty * kTile; y < std::min(cam.height, (ty + 1) * kTile); ++y) {
             for (int x = tx * kTile; x < std::min(cam.width, (tx + 1) * kTile); ++x) {
                 const float px = x + 0.5f, py = y + 0.5f;
                 float T = 1.0f, C[3] = {0, 0, 0};
-                for (std::uint32_t idx : list) {
+                for (const std::uint32_t* it = first; it != last; ++it) {
+                    const std::uint32_t idx = *it;
                     const Splat& s = splats[idx];
                     const float dx = px - s.u, dy = py - s.v;
                     const float power = -0.5f * (s.conicA * dx * dx + s.conicC * dy * dy) - s.conicB * dx * dy;

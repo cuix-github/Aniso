@@ -17,7 +17,7 @@ struct RenderStats {
 //      space, and project it to a 2D covariance with the perspective Jacobian. Add a small
 //      low-pass term so no splat is thinner than about a pixel. Invert it (the "conic") and
 //      take a radius of three standard deviations.
-//   2. Bin each splat into the 16x16-pixel tiles it overlaps and sort each tile's splats by
+//   2. Bin each splat into the 8x8-pixel tiles it overlaps and sort each tile's splats by
 //      depth.
 //   3. For each pixel, blend its tile's splats front to back:
 //         alpha = min(0.99, opacity * exp(-0.5 * d^T conic d)),  C += T * alpha * colour,

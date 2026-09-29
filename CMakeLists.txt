@@ -39,3 +39,8 @@ add_test(NAME render COMMAND test_render)
 add_executable(test_sh tests/test_sh.cpp)
 target_link_libraries(test_sh PRIVATE aniso_core)
 add_test(NAME sh COMMAND test_sh)
+
+if(WIN32)
+    add_executable(aniso_viewer src/viewer.cpp)
+    target_link_libraries(aniso_viewer PRIVATE aniso_core user32 gdi32)
+endif()
