@@ -6,7 +6,7 @@ A Gaussian-splat scene is millions of soft, anisotropic 3D Gaussians, each with 
 
 ## Status
 
-Step one works: loading a scene trained by the reference 3DGS code. `aniso info` prints what is in a file, and its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians, spherical harmonics of degree 3, loaded in about 150 ms).
+Two steps work. Loading: `aniso info` reads a scene trained by the reference 3DGS code, and its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians, spherical harmonics of degree 3, loaded in about 150 ms). Cameras: `aniso dots` reads COLMAP's reconstruction of the same scene, projects every Gaussian's centre through one photo's camera, and draws it as a dot; overlaid on the photo, the dots land on the train's lettering and handrails.
 
 ## Build
 
@@ -28,16 +28,31 @@ build/Release/aniso info data/train/point_cloud_7000.ply
 python tools/reference_stats.py data/train/point_cloud_7000.ply   # the cross-check, needs numpy
 ```
 
+The cameras and photos come from the input archive published with the reference code (`tandt_db.zip`, about 680 MB; only `tandt/train/` is needed):
+
+```
+curl -L -o data/tandt_db.zip https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip
+# extract tandt/train/ into data/, then:
+build/Release/aniso cameras data/tandt/train/sparse/0
+build/Release/aniso dots data/train/point_cloud_7000.ply data/tandt/train/sparse/0 00001.jpg renders/dots_00001.png
+```
+
+Open `renders/dots_00001.png` next to `data/tandt/train/images/00001.jpg`. The dot image is at the camera's full resolution (1959×1090); the photos in the archive are half size, so scale one to the other before overlaying.
+
 ## What the file holds
 
 The file stores the optimizer's raw values, not the ones a renderer uses, and the loader converts them. Scales are stored as logarithms, so the loader takes `exp`. Opacity is stored as a logit, so it goes through a sigmoid. Rotation is a quaternion with `w` first, normalized on load. Colour is spherical-harmonic coefficients: `f_dc_*` is the view-independent term, and the view-dependent ones in `f_rest_*` are stored all red, then all green, then all blue; the loader reorders them per coefficient. The view-independent colour is `0.5 + 0.2821 * f_dc`, and it can fall outside [0, 1] on its own, because the view-dependent terms add or subtract on top; the final colour is clamped after they are applied.
+
+## How cameras work here
+
+COLMAP describes each photo by a pinhole camera: focal lengths and a principal point in pixels, and a world-to-camera rotation and translation, so a world point maps to camera space as `R * X + t`. The camera looks down +z with +x right and +y down the image, so projecting is just `u = fx * x / z + cx`, `v = fy * y / z + cy`. The trained Gaussians live in the same world frame as COLMAP's reconstruction, because the reference code trains directly in it.
 
 ## Plan
 
 Each step ends in something that can be looked at and checked. They are tracked as issues.
 
 1. Load a trained scene. Done.
-2. Read the scene's cameras and project each Gaussian's centre as a dot; the dots should outline the reference photo.
+2. Read the scene's cameras and project each Gaussian's centre as a dot; the dots should outline the reference photo. Done.
 3. Render on the CPU: project each Gaussian's covariance to a 2D ellipse, sort by depth, blend front to back, view-independent colour first. Compare with the reference image.
 4. View-dependent colour from the full spherical harmonics.
 5. A scene of our own: a real bowl, photographed, reconstructed with COLMAP and trained with gsplat, rendered here and matching gsplat's own render.
