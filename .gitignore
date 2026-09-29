@@ -1,5 +1,6 @@
 # Build output
 build/
+build-cuda/
 out/
 
 # Downloaded and captured scenes, renders, clips: large, never committed
@@ -15,3 +16,6 @@ renders/
 __pycache__/
 *.pyc
 .venv/
+
+# Project-local CUDA toolkit, build caches, helper scripts (pipeline/setup_toolchain.py)
+.toolchain/
