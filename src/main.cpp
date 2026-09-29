@@ -15,12 +15,15 @@
 //   Renders the scene from that photo's camera, optionally at a different width (the
 //   Tanks and Temples photos are half the recorded camera size, so --width 980 matches them)
 //   and with view-dependent colour limited to degree D (default 3, the full colour; 0 is the
-//   view-independent colour only).
+//   view-independent colour only). --gpu uses the CUDA renderer, in builds that have it.
 
 #include "aniso/camera.h"
 #include "aniso/image.h"
 #include "aniso/ply_loader.h"
 #include "aniso/render.h"
+#ifdef ANISO_WITH_CUDA
+#include "aniso/gpu_render.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -127,7 +130,7 @@ int dots(const std::string& plyPath, const std::string& sparseDir, const std::st
 }
 
 int renderCmd(const std::string& plyPath, const std::string& sparseDir, const std::string& imageName,
-              const std::string& outPath, int width, int shDegree) {
+              const std::string& outPath, int width, int shDegree, bool gpu) {
     const aniso::Scene scene = aniso::loadPly(plyPath);
     const auto cams = aniso::loadColmapCameras(sparseDir);
     const auto it = std::find_if(cams.begin(), cams.end(), [&](const aniso::Camera& c) { return c.imageName == imageName; });
@@ -137,12 +140,23 @@ int renderCmd(const std::string& plyPath, const std::string& sparseDir, const st
     aniso::RenderStats st;
     aniso::RenderOptions options;
     options.shDegree = shDegree;
-    const aniso::Image img = aniso::render(scene, cam, &st, options);
+    aniso::Image img(1, 1);
+    if (gpu) {
+#ifdef ANISO_WITH_CUDA
+        aniso::GpuRenderer renderer(scene);
+        renderer.render(cam, nullptr, options); // first call pays for CUDA start-up; time the second
+        img = renderer.render(cam, &st, options);
+#else
+        throw std::runtime_error("this build has no CUDA renderer; build with build_cuda.bat");
+#endif
+    } else {
+        img = aniso::render(scene, cam, &st, options);
+    }
     aniso::writePng(outPath, img);
     std::printf("%s: %dx%d, SH degree %d, %zu splats, %zu splat-tile pairs\n", outPath.c_str(), cam.width, cam.height,
                 std::min(shDegree, scene.shDegree), st.visible, st.tilePairs);
-    std::printf("  project %.0f ms, sort and bin %.0f ms, blend %.0f ms, total %.0f ms\n", st.projectMs, st.sortMs,
-                st.blendMs, st.projectMs + st.sortMs + st.blendMs);
+    std::printf("  %s: project %.1f ms, sort and bin %.1f ms, blend %.1f ms, total %.1f ms\n", gpu ? "GPU" : "CPU",
+                st.projectMs, st.sortMs, st.blendMs, st.projectMs + st.sortMs + st.blendMs);
     return 0;
 }
 
@@ -154,14 +168,16 @@ int main(int argc, char** argv) {
         if (args.size() == 2 && args[0] == "info") return info(args[1]);
         if (args.size() == 2 && args[0] == "cameras") return cameras(args[1]);
         if (args.size() == 5 && args[0] == "dots") return dots(args[1], args[2], args[3], args[4]);
-        if (args.size() >= 5 && args.size() % 2 == 1 && args[0] == "render") {
+        if (args.size() >= 5 && args[0] == "render") {
             int width = 0, shDegree = 3;
-            for (std::size_t k = 5; k + 1 < args.size(); k += 2) {
-                if (args[k] == "--width") width = std::stoi(args[k + 1]);
-                else if (args[k] == "--sh-degree") shDegree = std::stoi(args[k + 1]);
+            bool gpu = false;
+            for (std::size_t k = 5; k < args.size(); ++k) {
+                if (args[k] == "--gpu") gpu = true;
+                else if (args[k] == "--width" && k + 1 < args.size()) width = std::stoi(args[++k]);
+                else if (args[k] == "--sh-degree" && k + 1 < args.size()) shDegree = std::stoi(args[++k]);
                 else throw std::runtime_error("unknown option " + args[k]);
             }
-            return renderCmd(args[1], args[2], args[3], args[4], width, shDegree);
+            return renderCmd(args[1], args[2], args[3], args[4], width, shDegree, gpu);
         }
     } catch (const std::exception& e) {
         std::fprintf(stderr, "error: %s\n", e.what());
@@ -172,6 +188,6 @@ int main(int argc, char** argv) {
                  "  aniso info <scene.ply>\n"
                  "  aniso cameras <colmap-sparse-dir>\n"
                  "  aniso dots <scene.ply> <colmap-sparse-dir> <image-name> <out.png>\n"
-                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree 0..3]\n");
+                 "  aniso render <scene.ply> <colmap-sparse-dir> <image-name> <out.png> [--width N] [--sh-degree 0..3] [--gpu]\n");
     return 2;
 }

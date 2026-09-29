@@ -21,11 +21,15 @@
 #include "aniso/camera.h"
 #include "aniso/ply_loader.h"
 #include "aniso/render.h"
+#ifdef ANISO_WITH_CUDA
+#include "aniso/gpu_render.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -95,6 +99,9 @@ struct Viewer {
     bool fullResShown = false;
 
     aniso::Image frame{1, 1};
+#ifdef ANISO_WITH_CUDA
+    std::unique_ptr<aniso::GpuRenderer> gpu; // when present, every frame renders at full resolution
+#endif
     std::vector<std::uint8_t> bgra;
     double lastFrameMs = 0;
 };
@@ -115,10 +122,18 @@ void jumpToPhoto(std::size_t i) {
 void renderFrame(bool full) {
     RECT rc;
     GetClientRect(g->hwnd, &rc);
-    const int width = full ? g->intrinsics.width : std::max(64, g->intrinsics.width / 4);
+    bool onGpu = false;
+#ifdef ANISO_WITH_CUDA
+    onGpu = g->gpu != nullptr;
+#endif
+    const int width = (full || onGpu) ? g->intrinsics.width : std::max(64, g->intrinsics.width / 4);
     const aniso::Camera cam = g->fly.toCamera(aniso::resized(g->intrinsics, width));
     const auto t0 = Clock::now();
-    g->frame = aniso::render(g->scene, cam);
+#ifdef ANISO_WITH_CUDA
+    if (onGpu) g->frame = g->gpu->render(cam);
+    else
+#endif
+        g->frame = aniso::render(g->scene, cam);
     g->lastFrameMs = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
 
     const auto& img = g->frame;
@@ -132,8 +147,8 @@ void renderFrame(bool full) {
     InvalidateRect(g->hwnd, nullptr, FALSE);
 
     char title[256];
-    std::snprintf(title, sizeof title, "Aniso viewer  |  %dx%d  %.0f ms (%.1f fps)  |  speed %.2f  |  near %s",
-                  img.width, img.height, g->lastFrameMs, 1000.0 / std::max(1.0, g->lastFrameMs), g->speed,
+    std::snprintf(title, sizeof title, "Aniso viewer  |  %s  %dx%d  %.1f ms (%.0f fps)  |  speed %.2f  |  near %s",
+                  onGpu ? "GPU" : "CPU", img.width, img.height, g->lastFrameMs, 1000.0 / std::max(1.0, g->lastFrameMs), g->speed,
                   g->photos[g->photoIndex].imageName.c_str());
     SetWindowTextA(g->hwnd, title);
 }
@@ -225,6 +240,9 @@ int run(const std::string& plyPath, const std::string& sparseDir, const std::str
     g = &v;
     std::printf("loading %s ...\n", plyPath.c_str());
     v.scene = aniso::loadPly(plyPath);
+#ifdef ANISO_WITH_CUDA
+    if (aniso::GpuRenderer::available()) v.gpu = std::make_unique<aniso::GpuRenderer>(v.scene);
+#endif
     v.photos = aniso::loadColmapCameras(sparseDir);
     if (v.photos.empty()) throw std::runtime_error("no cameras in " + sparseDir);
 
