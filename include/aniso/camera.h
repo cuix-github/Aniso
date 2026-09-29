@@ -25,6 +25,10 @@ struct Camera {
     Vec3 centre() const;
 };
 
+// The same camera at a different image width, height scaled to keep the aspect ratio. Focal
+// lengths and principal point scale with it; the pose is unchanged.
+Camera resized(const Camera& cam, int width);
+
 // A point in pixel coordinates plus its depth along the camera's viewing axis.
 struct Projected {
     float u = 0, v = 0, depth = 0;

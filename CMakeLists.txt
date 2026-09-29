@@ -15,6 +15,7 @@ add_library(aniso_core
     src/ply_loader.cpp
     src/camera.cpp
     src/image.cpp
+    src/render.cpp
 )
 target_include_directories(aniso_core PUBLIC include)
 
@@ -29,3 +30,7 @@ add_test(NAME ply_loader COMMAND test_ply_loader)
 add_executable(test_camera tests/test_camera.cpp)
 target_link_libraries(test_camera PRIVATE aniso_core)
 add_test(NAME camera COMMAND test_camera)
+
+add_executable(test_render tests/test_render.cpp)
+target_link_libraries(test_render PRIVATE aniso_core)
+add_test(NAME render COMMAND test_render)

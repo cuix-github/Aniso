@@ -22,6 +22,15 @@ Vec3 Camera::centre() const {
             static_cast<float>(-(R[0][2] * t[0] + R[1][2] * t[1] + R[2][2] * t[2]))};
 }
 
+Camera resized(const Camera& cam, int width) {
+    Camera c = cam;
+    const double s = static_cast<double>(width) / cam.width;
+    c.width = width;
+    c.height = static_cast<int>(std::lround(cam.height * s));
+    c.fx *= s; c.fy *= s; c.cx *= s; c.cy *= s;
+    return c;
+}
+
 std::optional<Projected> project(const Camera& cam, const Vec3& p, float nearPlane) {
     if (p.z < nearPlane) return std::nullopt;
     return Projected{static_cast<float>(cam.fx * p.x / p.z + cam.cx),
