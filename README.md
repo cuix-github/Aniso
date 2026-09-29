@@ -21,6 +21,15 @@ Full colour costs about 2 ms more per frame. The locomotive comes out sharp, let
 
 A difference image of the two shows where view-dependent colour matters: the handrails and the painted metal of the locomotive change with the viewing angle, while the gravel and dirt do not.
 
+**On the GPU**: a CUDA renderer with the same maths, organized like the reference rasterizer (per-Gaussian projection, one radix sort keyed by tile and depth, one thread block per 16×16 tile). Its images match the CPU renderer to within two brightness levels (77 to 86 dB). At 1280 wide:
+
+| Scene | CPU | GPU (RTX 5090) |
+|---|---|---|
+| *train*, 0.74 million Gaussians | 421 ms | 2.3 ms |
+| Kitchen, 2.2 million Gaussians | 845 ms | 2.6 ms |
+
+With the GPU build, the viewer renders every frame at full resolution, a few milliseconds each.
+
 ## Build
 
 Needs CMake 3.20+ and a C++20 compiler. On Windows with Visual Studio 2022, from cmd:
@@ -36,6 +45,14 @@ cmake -S . -B build
 cmake --build build --config Release
 ctest --test-dir build -C Release
 ```
+
+The CUDA renderer is optional. It needs an NVIDIA GPU and the project-local CUDA 12.8 toolkit, which `python pipeline\setup_toolchain.py` sets up once (nothing is installed system-wide). Then, from cmd:
+
+```
+build_cuda.bat
+```
+
+That builds into `build-cuda\` with Ninja and runs the tests, including one that checks the GPU renderer against the CPU renderer. `aniso render ... --gpu` uses the GPU, and `build-cuda\aniso_viewer.exe` uses it automatically.
 
 ## Try it
 
