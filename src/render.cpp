@@ -1,5 +1,7 @@
 #include "aniso/render.h"
 
+#include "aniso/sh.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -33,7 +35,7 @@ void rotation(const Quat& q, float M[3][3]) {
 }
 
 // Projects one Gaussian. Returns false if it is culled.
-bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, Splat& s) {
+bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, const Vec3& eye, int shDegree, Splat& s) {
     const Gaussian& g = scene.gaussians[i];
     Vec3 p = cam.toCamera(g.position);
     if (p.z < 0.2f) return false;
@@ -91,8 +93,11 @@ bool makeSplat(const Scene& scene, std::size_t i, const Camera& cam, Splat& s) {
 
     s.depth = p.z;
     s.opacity = g.opacity;
-    const auto rgb = dcColor(scene, i);
-    for (int k = 0; k < 3; ++k) s.rgb[k] = std::max(0.0f, rgb[k]);
+    Vec3 dir{g.position.x - eye.x, g.position.y - eye.y, g.position.z - eye.z};
+    const float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    dir = {dir.x / len, dir.y / len, dir.z / len};
+    const auto rgb = shColor(scene, i, dir, shDegree);
+    for (int k = 0; k < 3; ++k) s.rgb[k] = rgb[k];
     return true;
 }
 
@@ -111,17 +116,18 @@ void parallelFor(std::size_t n, Fn fn) {
 
 } // namespace
 
-Image render(const Scene& scene, const Camera& cam, RenderStats* stats) {
+Image render(const Scene& scene, const Camera& cam, RenderStats* stats, const RenderOptions& options) {
     RenderStats local;
     RenderStats& st = stats ? *stats : local;
 
     // 1. Project.
     auto t0 = Clock::now();
+    const Vec3 eye = cam.centre();
     std::vector<Splat> splats(scene.size());
     std::vector<char> alive(scene.size(), 0);
     parallelFor((scene.size() + 4095) / 4096, [&](std::size_t chunk) {
         const std::size_t end = std::min(scene.size(), (chunk + 1) * 4096);
-        for (std::size_t i = chunk * 4096; i < end; ++i) alive[i] = makeSplat(scene, i, cam, splats[i]) ? 1 : 0;
+        for (std::size_t i = chunk * 4096; i < end; ++i) alive[i] = makeSplat(scene, i, cam, eye, options.shDegree, splats[i]) ? 1 : 0;
     });
     std::vector<std::uint32_t> order;
     for (std::size_t i = 0; i < scene.size(); ++i)

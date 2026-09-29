@@ -6,18 +6,20 @@ A Gaussian-splat scene is millions of soft, anisotropic 3D Gaussians, each with 
 
 ## Status
 
-Three steps work. **Loading**: `aniso info` reads a scene trained by the reference 3DGS code; its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians). **Cameras**: `aniso dots` projects every Gaussian's centre through a photo's camera; the dots land on the train's lettering. **Rendering**: `aniso render` draws the scene from any photo's camera on the CPU, in about 0.4 seconds at 980×545 across all cores, view-independent colour only so far.
+Four steps work. **Loading**: `aniso info` reads a scene trained by the reference 3DGS code; its numbers match an independent numpy reader exactly on the Tanks and Temples *train* scene (741,883 Gaussians). **Cameras**: `aniso dots` projects every Gaussian's centre through a photo's camera; the dots land on the train's lettering. **Rendering**: `aniso render` draws the scene from any photo's camera on the CPU, in about 0.4 seconds at 980×545 across all cores. **View-dependent colour**: the full degree-3 spherical harmonics, so colour changes with the viewing angle.
 
-Against the real photos, at the photos' size:
+Against the real photos, at the photos' size (PSNR, higher is closer):
 
-| Photo | PSNR |
-|---|---|
-| 00001 | 21.7 dB |
-| 00050 | 22.0 dB |
-| 00150 | 19.5 dB |
-| 00250 | 24.2 dB |
+| Photo | View-independent colour | Full colour |
+|---|---|---|
+| 00001 | 21.7 dB | 22.2 dB |
+| 00050 | 22.0 dB | 22.5 dB |
+| 00150 | 19.5 dB | 20.3 dB |
+| 00250 | 24.2 dB | 25.2 dB |
 
-The locomotive comes out sharp, lettering readable. The sky is blotchy and the frame edges smear, which is typical of this scene: the sky is effectively at infinity, and the edges were barely covered by the photos.
+Full colour costs about 2 ms more per frame. The locomotive comes out sharp, lettering readable. The sky is blotchy and the frame edges smear, which is typical of this scene: the sky is effectively at infinity, and the edges were barely covered by the photos.
+
+A difference image of the two shows where view-dependent colour matters: the handrails and the painted metal of the locomotive change with the viewing angle, while the gravel and dirt do not.
 
 ## Build
 
@@ -66,6 +68,22 @@ start renders\compare_00001.png
 
 `--width 980` renders at the photos' size, so the two can be compared pixel for pixel; without it the render uses the camera's recorded size.
 
+To see where view-dependent colour matters, render with and without it and diff the two:
+
+```
+build\Release\aniso.exe render data\train\point_cloud_7000.ply data\tandt\train\sparse\0 00001.jpg renders\r_sh0.png --width 980 --sh-degree 0
+build\Release\aniso.exe render data\train\point_cloud_7000.ply data\tandt\train\sparse\0 00001.jpg renders\r_sh3.png --width 980
+python tools\diff.py renders\r_sh0.png renders\r_sh3.png renders\diff_sh.png
+start renders\diff_sh.png
+```
+
+To see the scene from a moving camera, render a run of consecutive photo cameras into a GIF (about half a minute for 60 frames):
+
+```
+python tools\orbit.py data\train\point_cloud_7000.ply data\tandt\train\sparse\0 renders\orbit.gif --first 1 --count 60
+start renders\orbit.gif
+```
+
 ## What the file holds
 
 The file stores the optimizer's raw values, not the ones a renderer uses, and the loader converts them. Scales are stored as logarithms, so the loader takes `exp`. Opacity is stored as a logit, so it goes through a sigmoid. Rotation is a quaternion with `w` first, normalized on load. Colour is spherical-harmonic coefficients: `f_dc_*` is the view-independent term, and the view-dependent ones in `f_rest_*` are stored all red, then all green, then all blue; the loader reorders them per coefficient. The view-independent colour is `0.5 + 0.2821 * f_dc`, and it can fall outside [0, 1] on its own, because the view-dependent terms add or subtract on top; the final colour is clamped after they are applied.
@@ -81,7 +99,7 @@ Each step ends in something that can be looked at and checked. They are tracked 
 1. Load a trained scene. Done.
 2. Read the scene's cameras and project each Gaussian's centre as a dot; the dots should outline the reference photo. Done.
 3. Render on the CPU: project each Gaussian's covariance to a 2D ellipse, sort by depth, blend front to back, view-independent colour first. Compare with the reference image. Done.
-4. View-dependent colour from the full spherical harmonics.
+4. View-dependent colour from the full spherical harmonics. Done.
 5. A scene of our own: a real bowl, photographed, reconstructed with COLMAP and trained with gsplat, rendered here and matching gsplat's own render.
 
 After that the renderer becomes the base for pouring a simulated liquid into that captured bowl, and for a GPU version written in HIP.
