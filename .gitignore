@@ -15,3 +15,6 @@ renders/
 __pycache__/
 *.pyc
 .venv/
+
+# Project-local CUDA toolkit, build caches, helper scripts (pipeline/setup_toolchain.py)
+.toolchain/
