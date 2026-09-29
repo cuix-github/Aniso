@@ -102,6 +102,15 @@ build\Release\aniso_viewer.exe data\train\point_cloud_7000.ply data\tandt\train\
 
 W A S D move, Q and E go down and up, Shift moves four times faster, holding the right mouse button and dragging looks around, the mouse wheel changes walking speed, N and P jump to the next or previous photo camera, Esc quits. On the CPU, the viewer renders a quarter-width image while you move (about 10 frames per second) and sharpens to full resolution, 1280 wide, when you stop. The title bar shows the frame time and the nearest photo camera. Walk away from where the photographer stood, behind the train or up in the air, and the scene falls apart into floating fragments and smears: that is the edge of what the photos saw.
 
+To make a smooth 1080p fly-through video with the GPU renderer (needs the CUDA build and `ffmpeg` on the PATH; a 12-second clip renders and encodes in under ten seconds):
+
+```
+python tools\flythrough.py data\train\point_cloud_7000.ply data\tandt\train\sparse\0 renders\train_orbit.mp4 --mode orbit
+start renders\train_orbit.mp4
+```
+
+`--mode orbit` circles the subject along a smoothed version of the photographers' path, always looking at the point the photos look at most. `--mode tour` walks through the photo cameras themselves, chained by nearness in position and direction and smoothed, which suits captures taken inside a room. `--seconds`, `--fps`, `--size`, and `--fov` adjust the clip. Behind it, `aniso path` renders one frame per camera pose and streams raw frames straight into ffmpeg.
+
 To see the scene from a moving camera, render a run of consecutive photo cameras into a GIF (about half a minute for 60 frames):
 
 ```
