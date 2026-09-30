@@ -1,0 +1,35 @@
+{
+    "header": {
+        "metadata": [ { "metaName": "adskFileFormatVersion", "metaValue": "100L" } ]
+    },
+    "namespaces": [],
+    "types": [],
+    "compounds": [
+        {
+            "name": "User::Test::hydro_test",
+            "ports": [
+                { "portName": "cells", "portDirection": "input", "portType": "int", "portDefault": "64" },
+                { "portName": "density_ratio", "portDirection": "input", "portType": "float", "portDefault": "1000" },
+                { "portName": "max_iterations", "portDirection": "input", "portType": "int", "portDefault": "10000" },
+                { "portName": "tolerance", "portDirection": "input", "portType": "float", "portDefault": "1e-06" },
+                { "portName": "max_velocity_after", "portDirection": "output", "portType": "float" },
+                { "portName": "pressure_jump", "portDirection": "output", "portType": "float" },
+                { "portName": "final_residual", "portDirection": "output", "portType": "float" },
+                { "portName": "iterations_used", "portDirection": "output", "portType": "int" }
+            ],
+            "compoundNodes": [
+                { "nodeName": "hp", "nodeType": "PFFlip::Spike::hydrostatic_projection_test" }
+            ],
+            "connections": [
+                { "source": ".cells", "target": "hp.cells" },
+                { "source": ".density_ratio", "target": "hp.density_ratio" },
+                { "source": ".max_iterations", "target": "hp.max_iterations" },
+                { "source": ".tolerance", "target": "hp.tolerance" },
+                { "source": "hp.max_velocity_after", "target": ".max_velocity_after" },
+                { "source": "hp.pressure_jump", "target": ".pressure_jump" },
+                { "source": "hp.final_residual", "target": ".final_residual" },
+                { "source": "hp.iterations_used", "target": ".iterations_used" }
+            ]
+        }
+    ]
+}
