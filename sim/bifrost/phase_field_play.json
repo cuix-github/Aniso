@@ -1,0 +1,317 @@
+{
+    "header": {
+        "metadata": [
+            {
+                "metaName": "adskFileFormatVersion",
+                "metaValue": "100L"
+            }
+        ]
+    },
+    "namespaces": [],
+    "types": [],
+    "compounds": [
+        {
+            "name": "User::PFFlip::phase_field_play",
+            "ports": [
+                {
+                    "portName": "particles_pattern",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "phase_pattern",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "frame",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "1f"
+                },
+                {
+                    "portName": "detail_size",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "1f"
+                },
+                {
+                    "portName": "radius",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "1.5f"
+                },
+                {
+                    "portName": "add_to_denominator",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "0.000001f"
+                },
+                {
+                    "portName": "view_volume",
+                    "portDirection": "output",
+                    "portType": "Object"
+                }
+            ],
+            "compoundNodes": [
+                {
+                    "nodeName": "t_pos",
+                    "valueType": "array<Math::float3>"
+                },
+                {
+                    "nodeName": "t_flt",
+                    "valueType": "array<float>"
+                },
+                {
+                    "nodeName": "rpos",
+                    "nodeType": "File::NumPy::read_NumPy"
+                },
+                {
+                    "nodeName": "rphase",
+                    "nodeType": "File::NumPy::read_NumPy"
+                },
+                {
+                    "nodeName": "cpts",
+                    "nodeType": "Geometry::Points::construct_points"
+                },
+                {
+                    "nodeName": "setp",
+                    "nodeType": "Geometry::Properties::set_geo_property"
+                },
+                {
+                    "nodeName": "p2v",
+                    "nodeType": "Geometry::Converters::points_to_volume"
+                },
+                {
+                    "nodeName": "splat",
+                    "nodeType": "Geometry::Volume::splat_points_into_volume"
+                },
+                {
+                    "nodeName": "zero",
+                    "valueType": "float"
+                },
+                {
+                    "nodeName": "setf",
+                    "nodeType": "Geometry::Properties::set_geo_property"
+                },
+                {
+                    "nodeName": "splat2",
+                    "nodeType": "Geometry::Volume::splat_points_into_volume"
+                },
+                {
+                    "nodeName": "f2i",
+                    "nodeType": "Core::Type_Conversion::to_int"
+                }
+            ],
+            "connections": [
+                {
+                    "source": "t_pos.output",
+                    "target": "rpos.type"
+                },
+                {
+                    "source": "t_flt.output",
+                    "target": "rphase.type"
+                },
+                {
+                    "source": ".particles_pattern",
+                    "target": "rpos.file_path"
+                },
+                {
+                    "source": ".phase_pattern",
+                    "target": "rphase.file_path"
+                },
+                {
+                    "source": "rpos.data",
+                    "target": "cpts.point_position"
+                },
+                {
+                    "source": "cpts.points",
+                    "target": "setp.geometry"
+                },
+                {
+                    "source": "rphase.data",
+                    "target": "setp.data"
+                },
+                {
+                    "source": "setp.out_geometry",
+                    "target": "splat.points"
+                },
+                {
+                    "source": ".radius",
+                    "target": "splat.radius"
+                },
+                {
+                    "source": ".add_to_denominator",
+                    "target": "splat.add_to_denominator"
+                },
+                {
+                    "source": "zero.output",
+                    "target": "setp.default"
+                },
+                {
+                    "source": ".detail_size",
+                    "target": "p2v.detail_size"
+                },
+                {
+                    "source": "setp.out_geometry",
+                    "target": "setf.geometry"
+                },
+                {
+                    "source": "setf.out_geometry",
+                    "target": "p2v.points"
+                },
+                {
+                    "source": "p2v.volume",
+                    "target": "splat.volume"
+                },
+                {
+                    "source": "rphase.data",
+                    "target": "setf.data"
+                },
+                {
+                    "source": "zero.output",
+                    "target": "setf.default"
+                },
+                {
+                    "source": "splat2.out_volume",
+                    "target": ".view_volume"
+                },
+                {
+                    "source": "splat.out_volume",
+                    "target": "splat2.volume"
+                },
+                {
+                    "source": "setf.out_geometry",
+                    "target": "splat2.points"
+                },
+                {
+                    "source": ".radius",
+                    "target": "splat2.radius"
+                },
+                {
+                    "source": ".add_to_denominator",
+                    "target": "splat2.add_to_denominator"
+                },
+                {
+                    "source": ".frame",
+                    "target": "f2i.from"
+                },
+                {
+                    "source": "f2i.int",
+                    "target": "rpos.frame"
+                },
+                {
+                    "source": "f2i.int",
+                    "target": "rphase.frame"
+                }
+            ],
+            "values": [
+                {
+                    "valueName": "t_pos.value",
+                    "valueType": "array<Math::float3>",
+                    "value": [
+                        {
+                            "x": "0f",
+                            "y": "0f",
+                            "z": "0f"
+                        }
+                    ]
+                },
+                {
+                    "valueName": "t_flt.value",
+                    "valueType": "array<float>",
+                    "value": [
+                        "0f"
+                    ]
+                },
+                {
+                    "valueName": "setp.property",
+                    "valueType": "string",
+                    "value": "voxel_phase"
+                },
+                {
+                    "valueName": "splat.create_properties",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "splat.properties",
+                    "valueType": "string",
+                    "value": "voxel_phase"
+                },
+                {
+                    "valueName": "splat.kernel",
+                    "valueType": "Geometry::Volume::SplatKernelType",
+                    "value": "kLinearKernel"
+                },
+                {
+                    "valueName": "splat.add_to_weights",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat.smoothing",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat.coarsest_depth",
+                    "valueType": "int",
+                    "value": "0"
+                },
+                {
+                    "valueName": "zero.value",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "p2v.properties",
+                    "valueType": "string",
+                    "value": ""
+                },
+                {
+                    "valueName": "p2v.resolution_mode",
+                    "valueType": "Geometry::Volume::ResolutionType",
+                    "value": "Absolute"
+                },
+                {
+                    "valueName": "setf.property",
+                    "valueType": "string",
+                    "value": "voxel_fog_density"
+                },
+                {
+                    "valueName": "splat2.create_properties",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "splat2.properties",
+                    "valueType": "string",
+                    "value": "voxel_fog_density"
+                },
+                {
+                    "valueName": "splat2.kernel",
+                    "valueType": "Geometry::Volume::SplatKernelType",
+                    "value": "kLinearKernel"
+                },
+                {
+                    "valueName": "splat2.add_to_weights",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat2.smoothing",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat2.coarsest_depth",
+                    "valueType": "int",
+                    "value": "0"
+                }
+            ]
+        }
+    ]
+}
