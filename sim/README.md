@@ -25,10 +25,11 @@ Spike results (2026-09-30): the projection returns a 1000:1 density-contrast col
 
 1. **Spike landed.** This folder builds and the hydrostatic test passes on a clean checkout. Done when `run_hydro_test.bat` reports max velocity after projection below 1e-4.
 2. **2D reference validates the core loop.** Hydrostatic rest, a two-phase dam break, and a Rayleigh-Taylor instability, the last being a two-phase-only phenomenon no single-phase solver can produce. Done when RT fingers develop from a seeded perturbation and the dam break front advances plausibly, with images in the repository.
-3. **Bifrost graph produces the phase field with stock nodes.** Seed liquid and air particles, splat mass with the stock node, normalize into a phase field, and match the 2D reference's field on the same input. Done when the fields agree closely on a shared test case.
-4. **The custom node does the projection inside the graph loop**, on channels assembled by stock nodes; 2D dam break inside Bifrost matches the reference qualitatively. Done when a side-by-side strip of frames looks the same.
-5. **3D at small scale** with adaptive particles (coarsen far-field air, per-size blend correction) and a preconditioned solve. Done when a 3D dam break in a box runs at around 128³ overnight or better and conserves volume reasonably.
-6. **The shot.** A captured real scene, box colliders aligned by hand, one violent release, particles exported per frame and rendered as Gaussians by Aniso inside the splat scene, whitewater coloured from the phase field. Scene choice is still open.
+3. **Validation gate: the paper's claims tested comparatively.** Done 2026-09-30, passed: see `reference2d/VALIDATION.md` (single-phase FLIP baseline vs two-phase on a sealed trapped-air pocket; interface transport vs a grid scalar; the viscosity law calibrated; mixing measured). One carried instruction: recalibrate the blend-to-viscosity constant per implementation.
+4. **Bifrost graph produces the phase field with stock nodes.** Seed liquid and air particles, splat mass with the stock node, normalize into a phase field, and match the 2D reference's field on the same input. Done when the fields agree closely on a shared test case.
+5. **The custom node does the projection inside the graph loop**, on channels assembled by stock nodes; 2D dam break inside Bifrost matches the reference qualitatively. Done when a side-by-side strip of frames looks the same.
+6. **3D at small scale** with adaptive particles (coarsen far-field air, per-size blend correction) and a preconditioned solve. Done when a 3D dam break in a box runs at around 128³ overnight or better and conserves volume reasonably.
+7. **The shot.** A captured real scene, box colliders aligned by hand, one violent release, particles exported per frame and rendered as Gaussians by Aniso inside the splat scene, whitewater coloured from the phase field. Scene choice is still open.
 
 ## Open questions
 
