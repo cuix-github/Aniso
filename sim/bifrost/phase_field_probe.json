@@ -1,0 +1,406 @@
+{
+    "header": {
+        "metadata": [
+            {
+                "metaName": "adskFileFormatVersion",
+                "metaValue": "100L"
+            }
+        ]
+    },
+    "namespaces": [],
+    "types": [],
+    "compounds": [
+        {
+            "name": "User::PFFlip::phase_field_probe",
+            "ports": [
+                {
+                    "portName": "particles_npy",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "phase_npy",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "probes_npy",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "phi_out_npy",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": ""
+                },
+                {
+                    "portName": "detail_size",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "1f"
+                },
+                {
+                    "portName": "radius",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "1.5f"
+                },
+                {
+                    "portName": "add_to_denominator",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "0.000001f"
+                },
+                {
+                    "portName": "sample_prop",
+                    "portDirection": "input",
+                    "portType": "string",
+                    "portDefault": "voxel_phase"
+                },
+                {
+                    "portName": "sample_default",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "-1f"
+                },
+                {
+                    "portName": "phi_written",
+                    "portDirection": "output",
+                    "portType": "bool"
+                },
+                {
+                    "portName": "resolved_path",
+                    "portDirection": "output",
+                    "portType": "string"
+                },
+                {
+                    "portName": "view_volume",
+                    "portDirection": "output",
+                    "portType": "Object"
+                }
+            ],
+            "compoundNodes": [
+                {
+                    "nodeName": "t_pos",
+                    "valueType": "array<Math::float3>"
+                },
+                {
+                    "nodeName": "t_flt",
+                    "valueType": "array<float>"
+                },
+                {
+                    "nodeName": "rpos",
+                    "nodeType": "File::NumPy::read_NumPy"
+                },
+                {
+                    "nodeName": "rphase",
+                    "nodeType": "File::NumPy::read_NumPy"
+                },
+                {
+                    "nodeName": "rprobe",
+                    "nodeType": "File::NumPy::read_NumPy"
+                },
+                {
+                    "nodeName": "cpts",
+                    "nodeType": "Geometry::Points::construct_points"
+                },
+                {
+                    "nodeName": "setp",
+                    "nodeType": "Geometry::Properties::set_geo_property"
+                },
+                {
+                    "nodeName": "p2v",
+                    "nodeType": "Geometry::Converters::points_to_volume"
+                },
+                {
+                    "nodeName": "splat",
+                    "nodeType": "Geometry::Volume::splat_points_into_volume"
+                },
+                {
+                    "nodeName": "samp",
+                    "nodeType": "Geometry::Query::sample_volume"
+                },
+                {
+                    "nodeName": "wphi",
+                    "nodeType": "File::NumPy::write_NumPy"
+                },
+                {
+                    "nodeName": "zero",
+                    "valueType": "float"
+                },
+                {
+                    "nodeName": "setf",
+                    "nodeType": "Geometry::Properties::set_geo_property"
+                },
+                {
+                    "nodeName": "splat2",
+                    "nodeType": "Geometry::Volume::splat_points_into_volume"
+                }
+            ],
+            "connections": [
+                {
+                    "source": "t_pos.output",
+                    "target": "rpos.type"
+                },
+                {
+                    "source": "t_flt.output",
+                    "target": "rphase.type"
+                },
+                {
+                    "source": "t_pos.output",
+                    "target": "rprobe.type"
+                },
+                {
+                    "source": ".particles_npy",
+                    "target": "rpos.file_path"
+                },
+                {
+                    "source": ".phase_npy",
+                    "target": "rphase.file_path"
+                },
+                {
+                    "source": ".probes_npy",
+                    "target": "rprobe.file_path"
+                },
+                {
+                    "source": "rpos.data",
+                    "target": "cpts.point_position"
+                },
+                {
+                    "source": "cpts.points",
+                    "target": "setp.geometry"
+                },
+                {
+                    "source": "rphase.data",
+                    "target": "setp.data"
+                },
+                {
+                    "source": "setp.out_geometry",
+                    "target": "splat.points"
+                },
+                {
+                    "source": ".radius",
+                    "target": "splat.radius"
+                },
+                {
+                    "source": ".add_to_denominator",
+                    "target": "splat.add_to_denominator"
+                },
+                {
+                    "source": "splat2.out_volume",
+                    "target": "samp.volume"
+                },
+                {
+                    "source": "rprobe.data",
+                    "target": "samp.positions"
+                },
+                {
+                    "source": ".sample_prop",
+                    "target": "samp.property"
+                },
+                {
+                    "source": ".sample_default",
+                    "target": "samp.default"
+                },
+                {
+                    "source": "samp.sampled_data",
+                    "target": "wphi.data"
+                },
+                {
+                    "source": ".phi_out_npy",
+                    "target": "wphi.file_path"
+                },
+                {
+                    "source": "wphi.success",
+                    "target": ".phi_written"
+                },
+                {
+                    "source": "wphi.resolved_file_path",
+                    "target": ".resolved_path"
+                },
+                {
+                    "source": "zero.output",
+                    "target": "setp.default"
+                },
+                {
+                    "source": ".detail_size",
+                    "target": "p2v.detail_size"
+                },
+                {
+                    "source": "setp.out_geometry",
+                    "target": "setf.geometry"
+                },
+                {
+                    "source": "setf.out_geometry",
+                    "target": "p2v.points"
+                },
+                {
+                    "source": "p2v.volume",
+                    "target": "splat.volume"
+                },
+                {
+                    "source": "rphase.data",
+                    "target": "setf.data"
+                },
+                {
+                    "source": "zero.output",
+                    "target": "setf.default"
+                },
+                {
+                    "source": "splat2.out_volume",
+                    "target": ".view_volume"
+                },
+                {
+                    "source": "splat.out_volume",
+                    "target": "splat2.volume"
+                },
+                {
+                    "source": "setf.out_geometry",
+                    "target": "splat2.points"
+                },
+                {
+                    "source": ".radius",
+                    "target": "splat2.radius"
+                },
+                {
+                    "source": ".add_to_denominator",
+                    "target": "splat2.add_to_denominator"
+                }
+            ],
+            "values": [
+                {
+                    "valueName": "t_pos.value",
+                    "valueType": "array<Math::float3>",
+                    "value": [
+                        {
+                            "x": "0f",
+                            "y": "0f",
+                            "z": "0f"
+                        }
+                    ]
+                },
+                {
+                    "valueName": "t_flt.value",
+                    "valueType": "array<float>",
+                    "value": [
+                        "0f"
+                    ]
+                },
+                {
+                    "valueName": "setp.property",
+                    "valueType": "string",
+                    "value": "voxel_phase"
+                },
+                {
+                    "valueName": "splat.create_properties",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "splat.properties",
+                    "valueType": "string",
+                    "value": "voxel_phase"
+                },
+                {
+                    "valueName": "splat.kernel",
+                    "valueType": "Geometry::Volume::SplatKernelType",
+                    "value": "kLinearKernel"
+                },
+                {
+                    "valueName": "splat.add_to_weights",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat.smoothing",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat.coarsest_depth",
+                    "valueType": "int",
+                    "value": "0"
+                },
+                {
+                    "valueName": "samp.sampler",
+                    "valueType": "Geometry::Query::SamplerType",
+                    "value": "kLinear"
+                },
+                {
+                    "valueName": "wphi.enable",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "wphi.overwrite",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "wphi.create_directories",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "wphi.frame",
+                    "valueType": "long",
+                    "value": "0L"
+                },
+                {
+                    "valueName": "zero.value",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "p2v.properties",
+                    "valueType": "string",
+                    "value": ""
+                },
+                {
+                    "valueName": "p2v.resolution_mode",
+                    "valueType": "Geometry::Volume::ResolutionType",
+                    "value": "Absolute"
+                },
+                {
+                    "valueName": "setf.property",
+                    "valueType": "string",
+                    "value": "voxel_fog_density"
+                },
+                {
+                    "valueName": "splat2.create_properties",
+                    "valueType": "bool",
+                    "value": "true"
+                },
+                {
+                    "valueName": "splat2.properties",
+                    "valueType": "string",
+                    "value": "voxel_fog_density"
+                },
+                {
+                    "valueName": "splat2.kernel",
+                    "valueType": "Geometry::Volume::SplatKernelType",
+                    "value": "kLinearKernel"
+                },
+                {
+                    "valueName": "splat2.add_to_weights",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat2.smoothing",
+                    "valueType": "float",
+                    "value": "0f"
+                },
+                {
+                    "valueName": "splat2.coarsest_depth",
+                    "valueType": "int",
+                    "value": "0"
+                }
+            ]
+        }
+    ]
+}
