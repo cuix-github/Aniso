@@ -1,11 +1,14 @@
 """Side-by-side frame comparisons: plain single-phase FLIP (top row) vs PF-FLIP (bottom row),
-same scene, same seeds, same instants. Two scenes:
+same scene, same seeds, same instants. Three scenes:
 
   dam_break   air escapes freely, so the two methods should look broadly similar — an honest
               negative control
   air_cushion a slab falls on a sealed pocket of air, where only PF-FLIP has the physics
+  plunge      a column falls fast into a pool — the regime where air becomes visible: the fall
+              is slowed by air ahead of it, an air film is trapped at impact, the splash lips
+              curl over air pockets, and the crater is air-filled instead of a vacuum
 
-  python compare_frames.py        ->  results/validation/compare_{dam_break,air_cushion}.png
+  python compare_frames.py [scene ...]   ->  results/validation/compare_<scene>.png
 """
 import os
 
@@ -77,8 +80,19 @@ def run_pair(nx, ny, mask, times, dt_frame, label):
     print("wrote", path)
 
 
+SCENES = {
+    "dam_break": (160, 80, lambda x, y: (x < 40) & (y < 56), [0.0, 0.9, 1.5, 2.4], 0.06),
+    "air_cushion": (96, 80, lambda x, y: (y < 20) | ((y > 30) & (y < 44)), [0.0, 0.4, 0.8, 1.2], 0.04),
+    # A column plunging fast into a pool: high impact speed drags air under the surface.
+    # Only PF-FLIP can entrain bubbles; plain FLIP's cavities are vacuum and just collapse.
+    "plunge": (100, 140, lambda x, y: (y < 40) | ((np.abs(x - 50) < 9) & (y > 88) & (y < 130)),
+               [0.0, 3.0, 3.6, 4.4, 5.6], 0.2),
+}
+
 if __name__ == "__main__":
+    import sys
     os.makedirs(OUT, exist_ok=True)
-    run_pair(160, 80, lambda x, y: (x < 40) & (y < 56), [0.0, 0.9, 1.5, 2.4], 0.06, "dam_break")
-    run_pair(96, 80, lambda x, y: (y < 20) | ((y > 30) & (y < 44)), [0.0, 0.4, 0.8, 1.2], 0.04,
-             "air_cushion")
+    which = sys.argv[1:] or list(SCENES)
+    for name in which:
+        nx, ny, mask, times, dtf = SCENES[name]
+        run_pair(nx, ny, mask, times, dtf, name)
