@@ -8,7 +8,8 @@
                 {
                     "path": ".",
                     "files": [
-                        "phase_field_probe.json"
+                        "phase_field_probe.json",
+                        "phase_field_play.json"
                     ]
                 }
             ]
