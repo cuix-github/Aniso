@@ -12,7 +12,7 @@
 add_library( PFFlipSpikeOps SHARED)
 target_compile_definitions( PFFlipSpikeOps PRIVATE
     PF_FLIP_SPIKE_BUILD_NODEDEF_DLL )
-target_sources( PFFlipSpikeOps PRIVATE PFFlipSpike.cpp)
+target_sources( PFFlipSpikeOps PRIVATE PFFlipSpike.cpp PFFlipSolve.cpp)
 target_link_libraries( PFFlipSpikeOps PUBLIC Amino::Cpp Amino::Core )
 bifrost_set_install_rpath(PFFlipSpikeOps)
 install( TARGETS PFFlipSpikeOps DESTINATION lib )
@@ -20,6 +20,7 @@ install( TARGETS PFFlipSpikeOps DESTINATION lib )
 # Generate and install the json files
 set( headers_to_parse 
     PFFlipSpike.h
+    PFFlipSolve.h
 )
 
 bifrost_header_parser(
