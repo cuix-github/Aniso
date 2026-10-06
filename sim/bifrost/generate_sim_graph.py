@@ -266,8 +266,128 @@ def build():
                            "connections": conns, "values": values}]}
 
 
+def build3d():
+    """The 3D loop: same architecture as build(), with a third staggered splat chain
+    for w, the step_3d node, momz as extra state, and a preconditioner port."""
+    g = build()
+    top = g["compounds"][0]
+    body = top["compounds"][0]
+
+    for n in body["compoundNodes"]:
+        if n["nodeName"] == "step":
+            n["nodeType"] = "PFFlip::Solve::step_3d"
+    body["compoundNodes"] += [
+        {"nodeName": "set_mz", "nodeType": "Geometry::Properties::set_geo_property"},
+        {"nodeName": "off_w", "valueType": "Math::float3"},
+        {"nodeName": "add_w", "nodeType": "Core::Math::add", "multiInPortNames": ["pts", "off"]},
+        {"nodeName": "spos_w", "nodeType": "Geometry::Properties::set_geo_property_data"},
+        {"nodeName": "p2v_w", "nodeType": "Geometry::Converters::points_to_volume"},
+        {"nodeName": "sp1_w", "nodeType": "Geometry::Volume::splat_points_into_volume"},
+        {"nodeName": "sp2_w", "nodeType": "Geometry::Volume::splat_points_into_volume"},
+        {"nodeName": "sp3_w", "nodeType": "Geometry::Volume::splat_points_into_volume"},
+        {"nodeName": "sm_w", "nodeType": "Geometry::Query::sample_volume"},
+        {"nodeName": "so_w", "nodeType": "Geometry::Query::sample_volume"},
+        {"nodeName": "sq_w", "nodeType": "Geometry::Query::sample_volume"},
+    ]
+    conns = body["connections"]
+    for k in conns:
+        if k["source"] == "set_my.out_geometry" and k["target"] == "set_ph.geometry":
+            k["source"] = "set_mz.out_geometry"
+    conns += [
+        {"source": "set_my.out_geometry", "target": "set_mz.geometry"},
+        {"source": ".momz_in", "target": "set_mz.data"},
+        {"source": "zero.output", "target": "set_mz.default"},
+        {"source": ".positions_in", "target": "add_w.first.pts"},
+        {"source": "off_w.output", "target": "add_w.first.off"},
+        {"source": "set_ph.out_geometry", "target": "spos_w.geometry"},
+        {"source": "add_w.output", "target": "spos_w.data"},
+        {"source": "spos_w.out_geometry", "target": "p2v_w.points"},
+        {"source": "spos_w.out_geometry", "target": "sp1_w.points"},
+        {"source": "spos_w.out_geometry", "target": "sp2_w.points"},
+        {"source": "spos_w.out_geometry", "target": "sp3_w.points"},
+        {"source": "p2v_w.volume", "target": "sp1_w.volume"},
+        {"source": "sp1_w.out_volume", "target": "sp2_w.volume"},
+        {"source": "sp2_w.out_volume", "target": "sp3_w.volume"},
+        {"source": "sp3_w.out_volume", "target": "sm_w.volume"},
+        {"source": "sp3_w.out_volume", "target": "so_w.volume"},
+        {"source": "sp3_w.out_volume", "target": "sq_w.volume"},
+        {"source": ".probes_w", "target": "sm_w.positions"},
+        {"source": ".probes_w", "target": "so_w.positions"},
+        {"source": ".probes_w", "target": "sq_w.positions"},
+        {"source": ".radius", "target": "sp1_w.radius"},
+        {"source": ".radius", "target": "sp2_w.radius"},
+        {"source": ".radius", "target": "sp3_w.radius"},
+        {"source": ".add_to_denominator", "target": "sp1_w.add_to_denominator"},
+        {"source": ".add_to_denominator", "target": "sp2_w.add_to_denominator"},
+        {"source": ".add_to_denominator", "target": "sp3_w.add_to_denominator"},
+        {"source": ".sample_default", "target": "sm_w.default"},
+        {"source": ".sample_default", "target": "so_w.default"},
+        {"source": ".sample_default", "target": "sq_w.default"},
+        {"source": "sm_w.sampled_data", "target": "step.w_mass"},
+        {"source": "so_w.sampled_data", "target": "step.w_mom"},
+        {"source": "sq_w.sampled_data", "target": "step.w_phase"},
+        {"source": ".nz", "target": "step.nz"},
+        {"source": ".preconditioner", "target": "step.preconditioner"},
+        {"source": "step.out_mom_z", "target": ".momz_out"},
+    ]
+    body["values"] += [
+        {"valueName": "set_mz.property", "valueType": "string", "value": "voxel_mz"},
+        {"valueName": "off_w.value", "valueType": "Math::float3",
+         "value": {"x": "0f", "y": "0f", "z": "0.5f"}},
+        {"valueName": "p2v_w.detail_size", "valueType": "float", "value": "1f"},
+        {"valueName": "p2v_w.properties", "valueType": "string", "value": ""},
+        {"valueName": "p2v_w.resolution_mode",
+         "valueType": "Geometry::Volume::ResolutionType", "value": "Absolute"},
+        {"valueName": "sm_w.property", "valueType": "string", "value": "voxel_m"},
+        {"valueName": "so_w.property", "valueType": "string", "value": "voxel_mz"},
+        {"valueName": "sq_w.property", "valueType": "string", "value": "voxel_ph"},
+        {"valueName": "sm_w.sampler", "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+        {"valueName": "so_w.sampler", "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+        {"valueName": "sq_w.sampler", "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+    ]
+    for sp, prop in (("sp1_w", "voxel_m"), ("sp2_w", "voxel_mz"), ("sp3_w", "voxel_ph")):
+        body["values"] += [
+            {"valueName": sp + ".create_properties", "valueType": "bool", "value": "true"},
+            {"valueName": sp + ".properties", "valueType": "string", "value": prop},
+            {"valueName": sp + ".kernel",
+             "valueType": "Geometry::Volume::SplatKernelType", "value": "kLinearKernel"},
+            {"valueName": sp + ".add_to_weights", "valueType": "float", "value": "0f"},
+            {"valueName": sp + ".smoothing", "valueType": "float", "value": "0f"},
+            {"valueName": sp + ".coarsest_depth", "valueType": "int", "value": "0"},
+        ]
+    body["ports"] += [
+        P("momz_in", "input", "array<float>"), P("momz_out", "output", "array<float>"),
+        P("probes_w", "input", "array<Math::float3>"),
+        P("nz", "input", "int"), P("preconditioner", "input", "int"),
+    ]
+    body["iterateCompound"]["ports"].insert(
+        3, {"portKind": "state", "inputPortName": "momz_in", "outputPortName": "momz_out"})
+
+    top["ports"] += [P("nz", "input", "int", "32"), P("preconditioner", "input", "int", "1"),
+                     P("path_momz", "input", "string", ""),
+                     P("path_probes_w", "input", "string", "")]
+    top["compoundNodes"] += [
+        {"nodeName": "r_momz", "nodeType": "File::NumPy::read_NumPy"},
+        {"nodeName": "r_probes_w", "nodeType": "File::NumPy::read_NumPy"},
+    ]
+    top["connections"] += [
+        {"source": ".nz", "target": "loop.nz"},
+        {"source": ".preconditioner", "target": "loop.preconditioner"},
+        {"source": ".path_momz", "target": "r_momz.file_path"},
+        {"source": "t_flt.output", "target": "r_momz.type"},
+        {"source": "r_momz.data", "target": "loop.momz_in"},
+        {"source": ".path_probes_w", "target": "r_probes_w.file_path"},
+        {"source": "t_pos.output", "target": "r_probes_w.type"},
+        {"source": "r_probes_w.data", "target": "loop.probes_w"},
+    ]
+    g["compounds"][0]["name"] = "User::PFFlip::sim_3d"
+    return g
+
+
 if __name__ == "__main__":
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sim_2d.json")
-    with open(out, "w") as f:
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "sim_2d.json"), "w") as f:
         json.dump(build(), f, indent=1)
-    print("wrote", out)
+    with open(os.path.join(here, "sim_3d.json"), "w") as f:
+        json.dump(build3d(), f, indent=1)
+    print("wrote sim_2d.json and sim_3d.json")
