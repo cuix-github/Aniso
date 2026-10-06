@@ -86,6 +86,42 @@
           "portDefault": "0"
         },
         {
+          "portName": "escape",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "0"
+        },
+        {
+          "portName": "esc_phi",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "0.3f"
+        },
+        {
+          "portName": "drag_droplet",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "1f"
+        },
+        {
+          "portName": "drag_bubble",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "8f"
+        },
+        {
+          "portName": "buoyancy",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "2f"
+        },
+        {
+          "portName": "rho0_face",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "1f"
+        },
+        {
           "portName": "path_u_mass",
           "portDirection": "input",
           "portType": "string",
@@ -198,6 +234,17 @@
         },
         {
           "portName": "ok_pressure",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_escaped",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_escaped",
           "portDirection": "output",
           "portType": "bool"
         },
@@ -322,6 +369,10 @@
           "nodeType": "File::NumPy::write_NumPy"
         },
         {
+          "nodeName": "w_out_escaped",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
           "nodeName": "w_out_positions",
           "nodeType": "File::NumPy::write_NumPy"
         },
@@ -378,6 +429,30 @@
         {
           "source": ".preconditioner",
           "target": "step.preconditioner"
+        },
+        {
+          "source": ".escape",
+          "target": "step.escape"
+        },
+        {
+          "source": ".esc_phi",
+          "target": "step.esc_phi"
+        },
+        {
+          "source": ".drag_droplet",
+          "target": "step.drag_droplet"
+        },
+        {
+          "source": ".drag_bubble",
+          "target": "step.drag_bubble"
+        },
+        {
+          "source": ".buoyancy",
+          "target": "step.buoyancy"
+        },
+        {
+          "source": ".rho0_face",
+          "target": "step.rho0_face"
         },
         {
           "source": ".path_u_mass",
@@ -572,6 +647,18 @@
           "target": ".ok_pressure"
         },
         {
+          "source": ".path_out_escaped",
+          "target": "w_out_escaped.file_path"
+        },
+        {
+          "source": "step.out_escaped",
+          "target": "w_out_escaped.data"
+        },
+        {
+          "source": "w_out_escaped.success",
+          "target": ".ok_out_escaped"
+        },
+        {
           "source": ".path_out_positions",
           "target": "w_out_positions.file_path"
         },
@@ -668,6 +755,16 @@
         },
         {
           "valueName": "w_pressure.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_escaped.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_escaped.create_directories",
           "valueType": "bool",
           "value": "true"
         },
