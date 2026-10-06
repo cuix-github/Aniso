@@ -38,7 +38,8 @@ def run_node(indir, outdir, **ports):
     for n in ("u_mass", "u_mom", "u_phase", "v_mass", "v_mom", "v_phase",
               "w_mass", "w_mom", "w_phase", "particle_phase", "positions", "velocities"):
         args += ["--set-port", "path_" + n, os.path.join(indir, n + ".npy").replace("\\", "/")]
-    for n in ("out_u", "out_v", "out_w", "pressure", "out_positions", "out_velocities"):
+    for n in ("out_u", "out_v", "out_w", "pressure", "out_positions", "out_velocities",
+              "out_escaped"):
         args += ["--set-port", "path_" + n, os.path.join(outdir, n + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)
     stats = {}

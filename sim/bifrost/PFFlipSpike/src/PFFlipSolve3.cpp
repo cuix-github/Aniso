@@ -194,7 +194,8 @@ namespace Solve {
 
 void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liquid,
              float rho_air, float alpha_liquid, float alpha_air, int max_iterations,
-             float tolerance, int preconditioner,
+             float tolerance, int preconditioner, int escape, float esc_phi,
+             float drag_droplet, float drag_bubble, float buoyancy, float rho0_face,
              const Amino::Array<float>& u_mass, const Amino::Array<float>& u_mom,
              const Amino::Array<float>& u_phase, const Amino::Array<float>& v_mass,
              const Amino::Array<float>& v_mom, const Amino::Array<float>& v_phase,
@@ -213,6 +214,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              Amino::Ptr<Amino::Array<float>>& out_v,
              Amino::Ptr<Amino::Array<float>>& out_w,
              Amino::Ptr<Amino::Array<float>>& pressure,
+             Amino::Ptr<Amino::Array<float>>& out_escaped,
              int& iterations_used, float& final_residual, float& max_divergence_after,
              float& max_speed) {
     const int NX = std::max(2, nx), NY = std::max(2, ny), NZ = std::max(1, nz);
@@ -362,6 +364,55 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     auto sW = [&](const Vec& g, double x, double y, double zc) {
         return sampleGrid(g, NX, NY, NZ + 1, 0.5, 0.5, 0.0, x, y, zc); };
 
+    // ---- escaped-particle detection, mirroring the 2D reference exactly: splat
+    // per-phase counts onto the face grids with the Eq. 6 kernel ((1-d^2)^3 on the
+    // 3x3(x3) stencil; with all particles at z=0.5 the z terms vanish, so nz=1
+    // reduces to the python detection bit for bit), sample the OTHER phase's count
+    // at each particle, and compare against the calibrated full-seeding density.
+    std::vector<char> escFlag(np, 0);
+    if (escape != 0 && np > 0) {
+        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};   // [0]=air, [1]=liquid
+        Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
+        auto splatCounts = [&](double offx, double offy, double offz,
+                               int gx, int gy, int gz, Vec* cnt) {
+            for (size_t pi = 0; pi < np; ++pi) {
+                const int ph = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
+                const double qx = positions[pi].x - offx;
+                const double qy = positions[pi].y - offy;
+                const double qz = positions[pi].z - offz;
+                const int bx = static_cast<int>(std::floor(qx + 0.5));
+                const int by = static_cast<int>(std::floor(qy + 0.5));
+                const int bz = static_cast<int>(std::floor(qz + 0.5));
+                const double fx = qx - bx, fy = qy - by, fz = qz - bz;
+                for (int di = -1; di <= 1; ++di)
+                    for (int dj = -1; dj <= 1; ++dj)
+                        for (int dk = -1; dk <= 1; ++dk) {
+                            const int i = bx + di, j = by + dj, k = bz + dk;
+                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= gz)
+                                continue;
+                            const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
+                                              (fz - dk) * (fz - dk);
+                            const double wgt = std::max(1.0 - d2, 0.0);
+                            if (wgt > 0.0)
+                                cnt[ph][(static_cast<size_t>(i) * gy + j) * gz + k] +=
+                                    wgt * wgt * wgt;
+                        }
+            }
+        };
+        splatCounts(0.0, 0.5, 0.5, NX + 1, NY, NZ, cntU);
+        splatCounts(0.5, 0.0, 0.5, NX, NY + 1, NZ, cntV);
+        const double thresh = (1.0 - esc_phi) * rho0_face;
+        for (size_t pi = 0; pi < np; ++pi) {
+            const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
+            const int other = liquid ? 0 : 1;
+            const double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
+            const double frac =
+                0.5 * (sampleGrid(cntU[other], NX + 1, NY, NZ, 0.0, 0.5, 0.5, px, py, pz) +
+                       sampleGrid(cntV[other], NX, NY + 1, NZ, 0.5, 0.0, 0.5, px, py, pz));
+            escFlag[pi] = frac > thresh ? 1 : 0;
+        }
+    }
+
     auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
     auto outVel = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
     auto outM = Amino::newMutablePtr<Amino::Array<float>>(np);
@@ -379,19 +430,37 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         double vz = pi < velocities.size() ? velocities[pi].z : 0.0;
         const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
         const double a = liquid ? alpha_liquid : alpha_air;
+        const bool esc = escFlag[pi] != 0;
 
-        vx = a * (vx + sU(du, px, py, pz)) + (1.0 - a) * sU(u, px, py, pz);
-        vy = a * (vy + sV(dv, px, py, pz)) + (1.0 - a) * sV(v, px, py, pz);
-        vz = flat ? 0.0 : a * (vz + sW(dw, px, py, pz)) + (1.0 - a) * sW(w, px, py, pz);
+        if (!esc) {
+            vx = a * (vx + sU(du, px, py, pz)) + (1.0 - a) * sU(u, px, py, pz);
+            vy = a * (vy + sV(dv, px, py, pz)) + (1.0 - a) * sV(v, px, py, pz);
+            vz = flat ? 0.0 : a * (vz + sW(dw, px, py, pz)) + (1.0 - a) * sW(w, px, py, pz);
+        } else {
+            // escaped: skip the blend; ballistic forces + drag toward the grid flow.
+            const double gx = sU(u, px, py, pz), gy = sV(v, px, py, pz);
+            const double gz = flat ? 0.0 : sW(w, px, py, pz);
+            const double drag = liquid ? drag_droplet : drag_bubble;
+            vy += (liquid ? gravity : buoyancy * std::fabs(gravity)) * dt;
+            vx += drag * dt * (gx - vx);
+            vy += drag * dt * (gy - vy);
+            vz = flat ? 0.0 : vz + drag * dt * (gz - vz);
+        }
 
-        const double mx = px + 0.5 * dt * sU(u, px, py, pz);
-        const double my = py + 0.5 * dt * sV(v, px, py, pz);
-        const double mz = flat ? pz : pz + 0.5 * dt * sW(w, px, py, pz);
-        const double cx = std::max(mx, 0.51), cy = std::max(my, 0.51);
-        const double cz = flat ? pz : std::max(mz, 0.51);
-        px += dt * sU(u, cx, cy, cz);
-        py += dt * sV(v, cx, cy, cz);
-        if (!flat) pz += dt * sW(w, cx, cy, cz);
+        if (!esc) {
+            const double mx = px + 0.5 * dt * sU(u, px, py, pz);
+            const double my = py + 0.5 * dt * sV(v, px, py, pz);
+            const double mz = flat ? pz : pz + 0.5 * dt * sW(w, px, py, pz);
+            const double cx = std::max(mx, 0.51), cy = std::max(my, 0.51);
+            const double cz = flat ? pz : std::max(mz, 0.51);
+            px += dt * sU(u, cx, cy, cz);
+            py += dt * sV(v, cx, cy, cz);
+            if (!flat) pz += dt * sW(w, cx, cy, cz);
+        } else {
+            px += dt * vx;
+            py += dt * vy;
+            if (!flat) pz += dt * vz;
+        }
 
         if (px < lo || px > hx) { px = std::clamp(px, lo, hx); vx = 0.0; }
         if (py < lo || py > hy) { py = std::clamp(py, lo, hy); vy = 0.0; }
@@ -406,6 +475,9 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         (*outMz)[pi] = m * static_cast<float>(vz);
         maxSpeed = std::max({maxSpeed, std::fabs(vx), std::fabs(vy), std::fabs(vz)});
     }
+
+    auto outEsc = Amino::newMutablePtr<Amino::Array<float>>(np);
+    for (size_t pi = 0; pi < np; ++pi) (*outEsc)[pi] = escFlag[pi] ? 1.0f : 0.0f;
 
     auto outU = Amino::newMutablePtr<Amino::Array<float>>(nu);
     auto outV = Amino::newMutablePtr<Amino::Array<float>>(nv);
@@ -426,6 +498,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     out_v = outV.toImmutable();
     out_w = outW.toImmutable();
     pressure = outP.toImmutable();
+    out_escaped = outEsc.toImmutable();
     iterations_used = it;
     final_residual = static_cast<float>(std::sqrt(rr2) / r0);
     max_divergence_after = static_cast<float>(maxDiv);

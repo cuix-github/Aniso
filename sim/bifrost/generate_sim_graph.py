@@ -293,6 +293,34 @@ def build3d():
     for k in conns:
         if k["source"] == "set_my.out_geometry" and k["target"] == "set_ph.geometry":
             k["source"] = "set_mz.out_geometry"
+    for n in ("escape", "esc_phi", "drag_droplet", "drag_bubble", "buoyancy", "rho0_face"):
+        body["ports"].append(P(n, "input", "float" if n != "escape" else "int"))
+        conns.append({"source": "." + n, "target": "step." + n})
+        top["ports"].append(P(n, "input", "float" if n != "escape" else "int",
+                              "0" if n == "escape" else "0f"))
+        top["connections"].append({"source": "." + n, "target": "loop." + n})
+    body["compoundNodes"] += [
+        {"nodeName": "w_esc", "nodeType": "File::NumPy::write_NumPy"},
+        {"nodeName": "ok_fe", "nodeType": "Core::Type_Conversion::to_float"},
+    ]
+    for n2 in body["compoundNodes"]:
+        if n2["nodeName"] == "ok_acc":
+            n2["multiInPortNames"] = ["s", "p", "q", "e"]
+    conns += [
+        {"source": "step.out_escaped", "target": "w_esc.data"},
+        {"source": ".esc_pattern", "target": "w_esc.file_path"},
+        {"source": ".current_index", "target": "w_esc.frame"},
+        {"source": "w_esc.success", "target": "ok_fe.from"},
+        {"source": "ok_fe.float", "target": "ok_acc.first.e"},
+    ]
+    body["values"] += [
+        {"valueName": "w_esc.overwrite", "valueType": "bool", "value": "true"},
+        {"valueName": "w_esc.create_directories", "valueType": "bool", "value": "true"},
+    ]
+    body["ports"].append(P("esc_pattern", "input", "string"))
+    top["ports"].append(P("esc_pattern", "input", "string", ""))
+    top["connections"].append({"source": ".esc_pattern", "target": "loop.esc_pattern"})
+
     conns += [
         {"source": "set_my.out_geometry", "target": "set_mz.geometry"},
         {"source": ".momz_in", "target": "set_mz.data"},

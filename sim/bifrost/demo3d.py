@@ -61,7 +61,8 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0):
             "--set-port", "rho_liquid", str(rho_l), "--set-port", "rho_air", str(rho_g),
             "--set-port", "pos_pattern", (d + "/frame.####").replace("\\", "/"),
             "--set-port", "diag_pattern", (d + "/diag.####").replace("\\", "/"),
-            "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/")]
+            "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/"),
+            "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/")]
     for k in arrs:
         args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)
