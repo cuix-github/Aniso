@@ -1,0 +1,1558 @@
+{
+ "header": {
+  "metadata": [
+   {
+    "metaName": "adskFileFormatVersion",
+    "metaValue": "100L"
+   }
+  ]
+ },
+ "namespaces": [],
+ "types": [],
+ "compounds": [
+  {
+   "name": "User::PFFlip::sim_2d",
+   "ports": [
+    {
+     "portName": "nx",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "160"
+    },
+    {
+     "portName": "ny",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "80"
+    },
+    {
+     "portName": "dt",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.015f"
+    },
+    {
+     "portName": "gravity",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "-9.8f"
+    },
+    {
+     "portName": "rho_liquid",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "1000f"
+    },
+    {
+     "portName": "rho_air",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "1f"
+    },
+    {
+     "portName": "alpha_liquid",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.97f"
+    },
+    {
+     "portName": "alpha_air",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.9f"
+    },
+    {
+     "portName": "max_iterations",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "4000"
+    },
+    {
+     "portName": "tolerance",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.000001f"
+    },
+    {
+     "portName": "radius",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "1.5f"
+    },
+    {
+     "portName": "add_to_denominator",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.000001f"
+    },
+    {
+     "portName": "sample_default",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0f"
+    },
+    {
+     "portName": "substeps",
+     "portDirection": "input",
+     "portType": "long",
+     "portDefault": "4"
+    },
+    {
+     "portName": "path_positions",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_velocities",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_momx",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_momy",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_particle_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_probes_u",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_probes_v",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "pos_pattern",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "diag_pattern",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_final_positions",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "writes_total",
+     "portDirection": "output",
+     "portType": "float"
+    }
+   ],
+   "compounds": [
+    {
+     "name": "loop",
+     "ports": [
+      {
+       "portName": "iteration_limit",
+       "portDirection": "input",
+       "portType": "long",
+       "portIterationLimit": "true"
+      },
+      {
+       "portName": "current_index",
+       "portDirection": "input",
+       "portType": "long",
+       "portIterationCounter": "true"
+      },
+      {
+       "portName": "positions_in",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "positions_out",
+       "portDirection": "output",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "velocities_in",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "velocities_out",
+       "portDirection": "output",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "momx_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "momx_out",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "momy_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "momy_out",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "ok_in",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "ok_out",
+       "portDirection": "output",
+       "portType": "float"
+      },
+      {
+       "portName": "mass_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "particle_phase",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "probes_u",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "probes_v",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "pos_pattern",
+       "portDirection": "input",
+       "portType": "string"
+      },
+      {
+       "portName": "diag_pattern",
+       "portDirection": "input",
+       "portType": "string"
+      },
+      {
+       "portName": "radius",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "add_to_denominator",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "sample_default",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "nx",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "ny",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "dt",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "gravity",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "rho_liquid",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "rho_air",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "alpha_liquid",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "alpha_air",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "max_iterations",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "tolerance",
+       "portDirection": "input",
+       "portType": "float"
+      }
+     ],
+     "compounds": [],
+     "compoundNodes": [
+      {
+       "nodeName": "cp",
+       "nodeType": "Geometry::Points::construct_points"
+      },
+      {
+       "nodeName": "set_m",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "set_mx",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "set_my",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "set_ph",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "zero",
+       "valueType": "float"
+      },
+      {
+       "nodeName": "step",
+       "nodeType": "PFFlip::Solve::step_2d"
+      },
+      {
+       "nodeName": "w_pos",
+       "nodeType": "File::NumPy::write_NumPy"
+      },
+      {
+       "nodeName": "w_diag",
+       "nodeType": "File::NumPy::write_NumPy"
+      },
+      {
+       "nodeName": "diag_arr",
+       "nodeType": "Core::Array::build_array",
+       "multiInPortNames": [
+        "a",
+        "b",
+        "c",
+        "d"
+       ]
+      },
+      {
+       "nodeName": "it_f",
+       "nodeType": "Core::Type_Conversion::to_float"
+      },
+      {
+       "nodeName": "ok_fp",
+       "nodeType": "Core::Type_Conversion::to_float"
+      },
+      {
+       "nodeName": "ok_fd",
+       "nodeType": "Core::Type_Conversion::to_float"
+      },
+      {
+       "nodeName": "ok_acc",
+       "nodeType": "Core::Math::add",
+       "multiInPortNames": [
+        "s",
+        "p",
+        "q"
+       ]
+      },
+      {
+       "nodeName": "off_u",
+       "valueType": "Math::float3"
+      },
+      {
+       "nodeName": "add_u",
+       "nodeType": "Core::Math::add",
+       "multiInPortNames": [
+        "pts",
+        "off"
+       ]
+      },
+      {
+       "nodeName": "spos_u",
+       "nodeType": "Geometry::Properties::set_geo_property_data"
+      },
+      {
+       "nodeName": "p2v_u",
+       "nodeType": "Geometry::Converters::points_to_volume"
+      },
+      {
+       "nodeName": "sp1_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sp2_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sp3_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sm_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "so_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sq_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "off_v",
+       "valueType": "Math::float3"
+      },
+      {
+       "nodeName": "add_v",
+       "nodeType": "Core::Math::add",
+       "multiInPortNames": [
+        "pts",
+        "off"
+       ]
+      },
+      {
+       "nodeName": "spos_v",
+       "nodeType": "Geometry::Properties::set_geo_property_data"
+      },
+      {
+       "nodeName": "p2v_v",
+       "nodeType": "Geometry::Converters::points_to_volume"
+      },
+      {
+       "nodeName": "sp1_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sp2_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sp3_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sm_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "so_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sq_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      }
+     ],
+     "connections": [
+      {
+       "source": ".positions_in",
+       "target": "cp.point_position"
+      },
+      {
+       "source": "cp.points",
+       "target": "set_m.geometry"
+      },
+      {
+       "source": "set_m.out_geometry",
+       "target": "set_mx.geometry"
+      },
+      {
+       "source": "set_mx.out_geometry",
+       "target": "set_my.geometry"
+      },
+      {
+       "source": "set_my.out_geometry",
+       "target": "set_ph.geometry"
+      },
+      {
+       "source": ".mass_in",
+       "target": "set_m.data"
+      },
+      {
+       "source": ".momx_in",
+       "target": "set_mx.data"
+      },
+      {
+       "source": ".momy_in",
+       "target": "set_my.data"
+      },
+      {
+       "source": ".particle_phase",
+       "target": "set_ph.data"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_m.default"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_mx.default"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_my.default"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_ph.default"
+      },
+      {
+       "source": ".positions_in",
+       "target": "add_u.first.pts"
+      },
+      {
+       "source": "off_u.output",
+       "target": "add_u.first.off"
+      },
+      {
+       "source": "set_ph.out_geometry",
+       "target": "spos_u.geometry"
+      },
+      {
+       "source": "add_u.output",
+       "target": "spos_u.data"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "p2v_u.points"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "sp1_u.points"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "sp2_u.points"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "sp3_u.points"
+      },
+      {
+       "source": "p2v_u.volume",
+       "target": "sp1_u.volume"
+      },
+      {
+       "source": "sp1_u.out_volume",
+       "target": "sp2_u.volume"
+      },
+      {
+       "source": "sp2_u.out_volume",
+       "target": "sp3_u.volume"
+      },
+      {
+       "source": "sp3_u.out_volume",
+       "target": "sm_u.volume"
+      },
+      {
+       "source": "sp3_u.out_volume",
+       "target": "so_u.volume"
+      },
+      {
+       "source": "sp3_u.out_volume",
+       "target": "sq_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "sm_u.positions"
+      },
+      {
+       "source": ".probes_u",
+       "target": "so_u.positions"
+      },
+      {
+       "source": ".probes_u",
+       "target": "sq_u.positions"
+      },
+      {
+       "source": ".radius",
+       "target": "sp1_u.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp1_u.add_to_denominator"
+      },
+      {
+       "source": ".radius",
+       "target": "sp2_u.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp2_u.add_to_denominator"
+      },
+      {
+       "source": ".radius",
+       "target": "sp3_u.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp3_u.add_to_denominator"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sm_u.default"
+      },
+      {
+       "source": ".sample_default",
+       "target": "so_u.default"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sq_u.default"
+      },
+      {
+       "source": ".positions_in",
+       "target": "add_v.first.pts"
+      },
+      {
+       "source": "off_v.output",
+       "target": "add_v.first.off"
+      },
+      {
+       "source": "set_ph.out_geometry",
+       "target": "spos_v.geometry"
+      },
+      {
+       "source": "add_v.output",
+       "target": "spos_v.data"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "p2v_v.points"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "sp1_v.points"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "sp2_v.points"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "sp3_v.points"
+      },
+      {
+       "source": "p2v_v.volume",
+       "target": "sp1_v.volume"
+      },
+      {
+       "source": "sp1_v.out_volume",
+       "target": "sp2_v.volume"
+      },
+      {
+       "source": "sp2_v.out_volume",
+       "target": "sp3_v.volume"
+      },
+      {
+       "source": "sp3_v.out_volume",
+       "target": "sm_v.volume"
+      },
+      {
+       "source": "sp3_v.out_volume",
+       "target": "so_v.volume"
+      },
+      {
+       "source": "sp3_v.out_volume",
+       "target": "sq_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "sm_v.positions"
+      },
+      {
+       "source": ".probes_v",
+       "target": "so_v.positions"
+      },
+      {
+       "source": ".probes_v",
+       "target": "sq_v.positions"
+      },
+      {
+       "source": ".radius",
+       "target": "sp1_v.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp1_v.add_to_denominator"
+      },
+      {
+       "source": ".radius",
+       "target": "sp2_v.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp2_v.add_to_denominator"
+      },
+      {
+       "source": ".radius",
+       "target": "sp3_v.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp3_v.add_to_denominator"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sm_v.default"
+      },
+      {
+       "source": ".sample_default",
+       "target": "so_v.default"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sq_v.default"
+      },
+      {
+       "source": ".nx",
+       "target": "step.nx"
+      },
+      {
+       "source": ".ny",
+       "target": "step.ny"
+      },
+      {
+       "source": ".dt",
+       "target": "step.dt"
+      },
+      {
+       "source": ".gravity",
+       "target": "step.gravity"
+      },
+      {
+       "source": ".rho_liquid",
+       "target": "step.rho_liquid"
+      },
+      {
+       "source": ".rho_air",
+       "target": "step.rho_air"
+      },
+      {
+       "source": ".alpha_liquid",
+       "target": "step.alpha_liquid"
+      },
+      {
+       "source": ".alpha_air",
+       "target": "step.alpha_air"
+      },
+      {
+       "source": ".max_iterations",
+       "target": "step.max_iterations"
+      },
+      {
+       "source": ".tolerance",
+       "target": "step.tolerance"
+      },
+      {
+       "source": "sm_u.sampled_data",
+       "target": "step.u_mass"
+      },
+      {
+       "source": "so_u.sampled_data",
+       "target": "step.u_mom"
+      },
+      {
+       "source": "sq_u.sampled_data",
+       "target": "step.u_phase"
+      },
+      {
+       "source": "sm_v.sampled_data",
+       "target": "step.v_mass"
+      },
+      {
+       "source": "so_v.sampled_data",
+       "target": "step.v_mom"
+      },
+      {
+       "source": "sq_v.sampled_data",
+       "target": "step.v_phase"
+      },
+      {
+       "source": ".positions_in",
+       "target": "step.positions"
+      },
+      {
+       "source": ".velocities_in",
+       "target": "step.velocities"
+      },
+      {
+       "source": ".particle_phase",
+       "target": "step.particle_phase"
+      },
+      {
+       "source": "step.out_positions",
+       "target": ".positions_out"
+      },
+      {
+       "source": "step.out_velocities",
+       "target": ".velocities_out"
+      },
+      {
+       "source": "step.out_mom_x",
+       "target": ".momx_out"
+      },
+      {
+       "source": "step.out_mom_y",
+       "target": ".momy_out"
+      },
+      {
+       "source": "step.out_positions",
+       "target": "w_pos.data"
+      },
+      {
+       "source": ".pos_pattern",
+       "target": "w_pos.file_path"
+      },
+      {
+       "source": ".current_index",
+       "target": "w_pos.frame"
+      },
+      {
+       "source": "step.iterations_used",
+       "target": "it_f.from"
+      },
+      {
+       "source": "it_f.float",
+       "target": "diag_arr.first.a"
+      },
+      {
+       "source": "step.final_residual",
+       "target": "diag_arr.first.b"
+      },
+      {
+       "source": "step.max_divergence_after",
+       "target": "diag_arr.first.c"
+      },
+      {
+       "source": "step.max_speed",
+       "target": "diag_arr.first.d"
+      },
+      {
+       "source": "diag_arr.array",
+       "target": "w_diag.data"
+      },
+      {
+       "source": ".diag_pattern",
+       "target": "w_diag.file_path"
+      },
+      {
+       "source": ".current_index",
+       "target": "w_diag.frame"
+      },
+      {
+       "source": "w_pos.success",
+       "target": "ok_fp.from"
+      },
+      {
+       "source": "w_diag.success",
+       "target": "ok_fd.from"
+      },
+      {
+       "source": ".ok_in",
+       "target": "ok_acc.first.s"
+      },
+      {
+       "source": "ok_fp.float",
+       "target": "ok_acc.first.p"
+      },
+      {
+       "source": "ok_fd.float",
+       "target": "ok_acc.first.q"
+      },
+      {
+       "source": "ok_acc.output",
+       "target": ".ok_out"
+      }
+     ],
+     "values": [
+      {
+       "valueName": "zero.value",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "set_m.property",
+       "valueType": "string",
+       "value": "voxel_m"
+      },
+      {
+       "valueName": "set_mx.property",
+       "valueType": "string",
+       "value": "voxel_mx"
+      },
+      {
+       "valueName": "set_my.property",
+       "valueType": "string",
+       "value": "voxel_my"
+      },
+      {
+       "valueName": "set_ph.property",
+       "valueType": "string",
+       "value": "voxel_ph"
+      },
+      {
+       "valueName": "off_u.value",
+       "valueType": "Math::float3",
+       "value": {
+        "x": "0.5f",
+        "y": "0f",
+        "z": "0f"
+       }
+      },
+      {
+       "valueName": "sp1_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp1_u.properties",
+       "valueType": "string",
+       "value": "voxel_m"
+      },
+      {
+       "valueName": "sp1_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp1_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp1_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp1_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sp2_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp2_u.properties",
+       "valueType": "string",
+       "value": "voxel_mx"
+      },
+      {
+       "valueName": "sp2_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp2_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp2_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp2_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sp3_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp3_u.properties",
+       "valueType": "string",
+       "value": "voxel_ph"
+      },
+      {
+       "valueName": "sp3_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp3_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp3_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp3_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "p2v_u.detail_size",
+       "valueType": "float",
+       "value": "1f"
+      },
+      {
+       "valueName": "p2v_u.properties",
+       "valueType": "string",
+       "value": ""
+      },
+      {
+       "valueName": "p2v_u.resolution_mode",
+       "valueType": "Geometry::Volume::ResolutionType",
+       "value": "Absolute"
+      },
+      {
+       "valueName": "sm_u.property",
+       "valueType": "string",
+       "value": "voxel_m"
+      },
+      {
+       "valueName": "so_u.property",
+       "valueType": "string",
+       "value": "voxel_mx"
+      },
+      {
+       "valueName": "sq_u.property",
+       "valueType": "string",
+       "value": "voxel_ph"
+      },
+      {
+       "valueName": "sm_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "so_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sq_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "off_v.value",
+       "valueType": "Math::float3",
+       "value": {
+        "x": "0f",
+        "y": "0.5f",
+        "z": "0f"
+       }
+      },
+      {
+       "valueName": "sp1_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp1_v.properties",
+       "valueType": "string",
+       "value": "voxel_m"
+      },
+      {
+       "valueName": "sp1_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp1_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp1_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp1_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sp2_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp2_v.properties",
+       "valueType": "string",
+       "value": "voxel_my"
+      },
+      {
+       "valueName": "sp2_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp2_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp2_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp2_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sp3_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp3_v.properties",
+       "valueType": "string",
+       "value": "voxel_ph"
+      },
+      {
+       "valueName": "sp3_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp3_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp3_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp3_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "p2v_v.detail_size",
+       "valueType": "float",
+       "value": "1f"
+      },
+      {
+       "valueName": "p2v_v.properties",
+       "valueType": "string",
+       "value": ""
+      },
+      {
+       "valueName": "p2v_v.resolution_mode",
+       "valueType": "Geometry::Volume::ResolutionType",
+       "value": "Absolute"
+      },
+      {
+       "valueName": "sm_v.property",
+       "valueType": "string",
+       "value": "voxel_m"
+      },
+      {
+       "valueName": "so_v.property",
+       "valueType": "string",
+       "value": "voxel_my"
+      },
+      {
+       "valueName": "sq_v.property",
+       "valueType": "string",
+       "value": "voxel_ph"
+      },
+      {
+       "valueName": "sm_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "so_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sq_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "w_pos.overwrite",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_pos.create_directories",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_diag.overwrite",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_diag.create_directories",
+       "valueType": "bool",
+       "value": "true"
+      }
+     ],
+     "iterateCompound": {
+      "ports": [
+       {
+        "portKind": "state",
+        "inputPortName": "positions_in",
+        "outputPortName": "positions_out"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "velocities_in",
+        "outputPortName": "velocities_out"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "momx_in",
+        "outputPortName": "momx_out"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "momy_in",
+        "outputPortName": "momy_out"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "ok_in",
+        "outputPortName": "ok_out"
+       }
+      ]
+     }
+    }
+   ],
+   "compoundNodes": [
+    {
+     "nodeName": "t_pos",
+     "valueType": "array<Math::float3>"
+    },
+    {
+     "nodeName": "t_flt",
+     "valueType": "array<float>"
+    },
+    {
+     "nodeName": "zerof",
+     "valueType": "float"
+    },
+    {
+     "nodeName": "loop",
+     "nodeType": "loop"
+    },
+    {
+     "nodeName": "w_final",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "r_positions",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_velocities",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_mass",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_momx",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_momy",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_particle_phase",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_probes_u",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_probes_v",
+     "nodeType": "File::NumPy::read_NumPy"
+    }
+   ],
+   "connections": [
+    {
+     "source": ".nx",
+     "target": "loop.nx"
+    },
+    {
+     "source": ".ny",
+     "target": "loop.ny"
+    },
+    {
+     "source": ".dt",
+     "target": "loop.dt"
+    },
+    {
+     "source": ".gravity",
+     "target": "loop.gravity"
+    },
+    {
+     "source": ".rho_liquid",
+     "target": "loop.rho_liquid"
+    },
+    {
+     "source": ".rho_air",
+     "target": "loop.rho_air"
+    },
+    {
+     "source": ".alpha_liquid",
+     "target": "loop.alpha_liquid"
+    },
+    {
+     "source": ".alpha_air",
+     "target": "loop.alpha_air"
+    },
+    {
+     "source": ".max_iterations",
+     "target": "loop.max_iterations"
+    },
+    {
+     "source": ".tolerance",
+     "target": "loop.tolerance"
+    },
+    {
+     "source": ".radius",
+     "target": "loop.radius"
+    },
+    {
+     "source": ".add_to_denominator",
+     "target": "loop.add_to_denominator"
+    },
+    {
+     "source": ".sample_default",
+     "target": "loop.sample_default"
+    },
+    {
+     "source": ".substeps",
+     "target": "loop.iteration_limit"
+    },
+    {
+     "source": ".path_positions",
+     "target": "r_positions.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r_positions.type"
+    },
+    {
+     "source": "r_positions.data",
+     "target": "loop.positions_in"
+    },
+    {
+     "source": ".path_velocities",
+     "target": "r_velocities.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r_velocities.type"
+    },
+    {
+     "source": "r_velocities.data",
+     "target": "loop.velocities_in"
+    },
+    {
+     "source": ".path_mass",
+     "target": "r_mass.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_mass.type"
+    },
+    {
+     "source": "r_mass.data",
+     "target": "loop.mass_in"
+    },
+    {
+     "source": ".path_momx",
+     "target": "r_momx.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_momx.type"
+    },
+    {
+     "source": "r_momx.data",
+     "target": "loop.momx_in"
+    },
+    {
+     "source": ".path_momy",
+     "target": "r_momy.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_momy.type"
+    },
+    {
+     "source": "r_momy.data",
+     "target": "loop.momy_in"
+    },
+    {
+     "source": ".path_particle_phase",
+     "target": "r_particle_phase.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_particle_phase.type"
+    },
+    {
+     "source": "r_particle_phase.data",
+     "target": "loop.particle_phase"
+    },
+    {
+     "source": ".path_probes_u",
+     "target": "r_probes_u.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r_probes_u.type"
+    },
+    {
+     "source": "r_probes_u.data",
+     "target": "loop.probes_u"
+    },
+    {
+     "source": ".path_probes_v",
+     "target": "r_probes_v.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r_probes_v.type"
+    },
+    {
+     "source": "r_probes_v.data",
+     "target": "loop.probes_v"
+    },
+    {
+     "source": ".pos_pattern",
+     "target": "loop.pos_pattern"
+    },
+    {
+     "source": ".diag_pattern",
+     "target": "loop.diag_pattern"
+    },
+    {
+     "source": "zerof.output",
+     "target": "loop.ok_in"
+    },
+    {
+     "source": "loop.ok_out",
+     "target": ".writes_total"
+    },
+    {
+     "source": "loop.positions_out",
+     "target": "w_final.data"
+    },
+    {
+     "source": ".path_final_positions",
+     "target": "w_final.file_path"
+    },
+    {
+     "source": "w_final.success",
+     "target": ".ok_final"
+    }
+   ],
+   "values": [
+    {
+     "valueName": "t_pos.value",
+     "valueType": "array<Math::float3>",
+     "value": [
+      {
+       "x": "0f",
+       "y": "0f",
+       "z": "0f"
+      }
+     ]
+    },
+    {
+     "valueName": "t_flt.value",
+     "valueType": "array<float>",
+     "value": [
+      "0f"
+     ]
+    },
+    {
+     "valueName": "w_final.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_final.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "zerof.value",
+     "valueType": "float",
+     "value": "0f"
+    }
+   ]
+  }
+ ]
+}
