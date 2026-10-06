@@ -67,6 +67,56 @@ void step_2d(int   nx,
              float& max_speed)
     AMINO_ANNOTATE("Amino::Node");
 
+// Milestone 6: the same step in 3D on a uniform MAC grid, with a geometric
+// multigrid-preconditioned CG solve (preconditioner 0 = Jacobi, 1 = multigrid
+// V-cycle). At nz = 1 the w faces are all walls and the step reduces exactly
+// to the 2D method, which is the lockstep bridge used by validate_3d.py.
+// Flat layouts, row-major like numpy ravel() on (nx[+1], ny[+1], nz[+1]):
+//   u: (nx+1)*ny*nz   index (i*ny + j)*nz + k
+//   v: nx*(ny+1)*nz   index (i*(ny+1) + j)*nz + k
+//   w: nx*ny*(nz+1)   index (i*ny + j)*(nz+1) + k
+//   p: nx*ny*nz       index (i*ny + j)*nz + k
+PF_FLIP_SPIKE_DECL
+void step_3d(int   nx,
+             int   ny,
+             int   nz,
+             float dt,
+             float gravity,
+             float rho_liquid,
+             float rho_air,
+             float alpha_liquid,
+             float alpha_air,
+             int   max_iterations,
+             float tolerance,
+             int   preconditioner,
+             const Amino::Array<float>& u_mass,
+             const Amino::Array<float>& u_mom,
+             const Amino::Array<float>& u_phase,
+             const Amino::Array<float>& v_mass,
+             const Amino::Array<float>& v_mom,
+             const Amino::Array<float>& v_phase,
+             const Amino::Array<float>& w_mass,
+             const Amino::Array<float>& w_mom,
+             const Amino::Array<float>& w_phase,
+             const Amino::Array<Bifrost::Math::float3>& positions,
+             const Amino::Array<Bifrost::Math::float3>& velocities,
+             const Amino::Array<float>& particle_phase,
+             Amino::Ptr<Amino::Array<Bifrost::Math::float3>>& out_positions,
+             Amino::Ptr<Amino::Array<Bifrost::Math::float3>>& out_velocities,
+             Amino::Ptr<Amino::Array<float>>& out_mass,
+             Amino::Ptr<Amino::Array<float>>& out_mom_x,
+             Amino::Ptr<Amino::Array<float>>& out_mom_y,
+             Amino::Ptr<Amino::Array<float>>& out_mom_z,
+             Amino::Ptr<Amino::Array<float>>& out_u,
+             Amino::Ptr<Amino::Array<float>>& out_v,
+             Amino::Ptr<Amino::Array<float>>& out_w,
+             Amino::Ptr<Amino::Array<float>>& pressure,
+             int&   iterations_used,
+             float& final_residual,
+             float& max_divergence_after,
+             float& max_speed)
+    AMINO_ANNOTATE("Amino::Node");
+
 } // namespace Solve
 } // namespace PFFlip
 

@@ -1,0 +1,697 @@
+{
+  "header": {
+    "metadata": [
+      {
+        "metaName": "adskFileFormatVersion",
+        "metaValue": "100L"
+      }
+    ]
+  },
+  "namespaces": [],
+  "types": [],
+  "compounds": [
+    {
+      "name": "User::PFFlip::solve_step3_test",
+      "ports": [
+        {
+          "portName": "nx",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "160"
+        },
+        {
+          "portName": "ny",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "80"
+        },
+        {
+          "portName": "nz",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "1"
+        },
+        {
+          "portName": "dt",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "0.02f"
+        },
+        {
+          "portName": "gravity",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "-9.8f"
+        },
+        {
+          "portName": "rho_liquid",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "1000f"
+        },
+        {
+          "portName": "rho_air",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "1f"
+        },
+        {
+          "portName": "alpha_liquid",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "0.97f"
+        },
+        {
+          "portName": "alpha_air",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "0.9f"
+        },
+        {
+          "portName": "max_iterations",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "4000"
+        },
+        {
+          "portName": "tolerance",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "0.000001f"
+        },
+        {
+          "portName": "preconditioner",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "0"
+        },
+        {
+          "portName": "path_u_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_particle_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_positions",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_velocities",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_out_u",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_u",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_v",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_v",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_w",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_w",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_pressure",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_pressure",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_positions",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_positions",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_velocities",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_velocities",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "iterations_used",
+          "portDirection": "output",
+          "portType": "int"
+        },
+        {
+          "portName": "final_residual",
+          "portDirection": "output",
+          "portType": "float"
+        },
+        {
+          "portName": "max_divergence_after",
+          "portDirection": "output",
+          "portType": "float"
+        },
+        {
+          "portName": "max_speed",
+          "portDirection": "output",
+          "portType": "float"
+        }
+      ],
+      "compoundNodes": [
+        {
+          "nodeName": "t_pos",
+          "valueType": "array<Math::float3>"
+        },
+        {
+          "nodeName": "t_flt",
+          "valueType": "array<float>"
+        },
+        {
+          "nodeName": "step",
+          "nodeType": "PFFlip::Solve::step_3d"
+        },
+        {
+          "nodeName": "r_u_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_particle_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_positions",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_velocities",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "w_out_u",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_v",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_w",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_pressure",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_positions",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_velocities",
+          "nodeType": "File::NumPy::write_NumPy"
+        }
+      ],
+      "connections": [
+        {
+          "source": ".nx",
+          "target": "step.nx"
+        },
+        {
+          "source": ".ny",
+          "target": "step.ny"
+        },
+        {
+          "source": ".nz",
+          "target": "step.nz"
+        },
+        {
+          "source": ".dt",
+          "target": "step.dt"
+        },
+        {
+          "source": ".gravity",
+          "target": "step.gravity"
+        },
+        {
+          "source": ".rho_liquid",
+          "target": "step.rho_liquid"
+        },
+        {
+          "source": ".rho_air",
+          "target": "step.rho_air"
+        },
+        {
+          "source": ".alpha_liquid",
+          "target": "step.alpha_liquid"
+        },
+        {
+          "source": ".alpha_air",
+          "target": "step.alpha_air"
+        },
+        {
+          "source": ".max_iterations",
+          "target": "step.max_iterations"
+        },
+        {
+          "source": ".tolerance",
+          "target": "step.tolerance"
+        },
+        {
+          "source": ".preconditioner",
+          "target": "step.preconditioner"
+        },
+        {
+          "source": ".path_u_mass",
+          "target": "r_u_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u_mass.type"
+        },
+        {
+          "source": "r_u_mass.data",
+          "target": "step.u_mass"
+        },
+        {
+          "source": ".path_u_mom",
+          "target": "r_u_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u_mom.type"
+        },
+        {
+          "source": "r_u_mom.data",
+          "target": "step.u_mom"
+        },
+        {
+          "source": ".path_u_phase",
+          "target": "r_u_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u_phase.type"
+        },
+        {
+          "source": "r_u_phase.data",
+          "target": "step.u_phase"
+        },
+        {
+          "source": ".path_v_mass",
+          "target": "r_v_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v_mass.type"
+        },
+        {
+          "source": "r_v_mass.data",
+          "target": "step.v_mass"
+        },
+        {
+          "source": ".path_v_mom",
+          "target": "r_v_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v_mom.type"
+        },
+        {
+          "source": "r_v_mom.data",
+          "target": "step.v_mom"
+        },
+        {
+          "source": ".path_v_phase",
+          "target": "r_v_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v_phase.type"
+        },
+        {
+          "source": "r_v_phase.data",
+          "target": "step.v_phase"
+        },
+        {
+          "source": ".path_w_mass",
+          "target": "r_w_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w_mass.type"
+        },
+        {
+          "source": "r_w_mass.data",
+          "target": "step.w_mass"
+        },
+        {
+          "source": ".path_w_mom",
+          "target": "r_w_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w_mom.type"
+        },
+        {
+          "source": "r_w_mom.data",
+          "target": "step.w_mom"
+        },
+        {
+          "source": ".path_w_phase",
+          "target": "r_w_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w_phase.type"
+        },
+        {
+          "source": "r_w_phase.data",
+          "target": "step.w_phase"
+        },
+        {
+          "source": ".path_particle_phase",
+          "target": "r_particle_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_particle_phase.type"
+        },
+        {
+          "source": "r_particle_phase.data",
+          "target": "step.particle_phase"
+        },
+        {
+          "source": ".path_positions",
+          "target": "r_positions.file_path"
+        },
+        {
+          "source": "t_pos.output",
+          "target": "r_positions.type"
+        },
+        {
+          "source": "r_positions.data",
+          "target": "step.positions"
+        },
+        {
+          "source": ".path_velocities",
+          "target": "r_velocities.file_path"
+        },
+        {
+          "source": "t_pos.output",
+          "target": "r_velocities.type"
+        },
+        {
+          "source": "r_velocities.data",
+          "target": "step.velocities"
+        },
+        {
+          "source": ".path_out_u",
+          "target": "w_out_u.file_path"
+        },
+        {
+          "source": "step.out_u",
+          "target": "w_out_u.data"
+        },
+        {
+          "source": "w_out_u.success",
+          "target": ".ok_out_u"
+        },
+        {
+          "source": ".path_out_v",
+          "target": "w_out_v.file_path"
+        },
+        {
+          "source": "step.out_v",
+          "target": "w_out_v.data"
+        },
+        {
+          "source": "w_out_v.success",
+          "target": ".ok_out_v"
+        },
+        {
+          "source": ".path_out_w",
+          "target": "w_out_w.file_path"
+        },
+        {
+          "source": "step.out_w",
+          "target": "w_out_w.data"
+        },
+        {
+          "source": "w_out_w.success",
+          "target": ".ok_out_w"
+        },
+        {
+          "source": ".path_pressure",
+          "target": "w_pressure.file_path"
+        },
+        {
+          "source": "step.pressure",
+          "target": "w_pressure.data"
+        },
+        {
+          "source": "w_pressure.success",
+          "target": ".ok_pressure"
+        },
+        {
+          "source": ".path_out_positions",
+          "target": "w_out_positions.file_path"
+        },
+        {
+          "source": "step.out_positions",
+          "target": "w_out_positions.data"
+        },
+        {
+          "source": "w_out_positions.success",
+          "target": ".ok_out_positions"
+        },
+        {
+          "source": ".path_out_velocities",
+          "target": "w_out_velocities.file_path"
+        },
+        {
+          "source": "step.out_velocities",
+          "target": "w_out_velocities.data"
+        },
+        {
+          "source": "w_out_velocities.success",
+          "target": ".ok_out_velocities"
+        },
+        {
+          "source": "step.iterations_used",
+          "target": ".iterations_used"
+        },
+        {
+          "source": "step.final_residual",
+          "target": ".final_residual"
+        },
+        {
+          "source": "step.max_divergence_after",
+          "target": ".max_divergence_after"
+        },
+        {
+          "source": "step.max_speed",
+          "target": ".max_speed"
+        }
+      ],
+      "values": [
+        {
+          "valueName": "t_pos.value",
+          "valueType": "array<Math::float3>",
+          "value": [
+            {
+              "x": "0f",
+              "y": "0f",
+              "z": "0f"
+            }
+          ]
+        },
+        {
+          "valueName": "t_flt.value",
+          "valueType": "array<float>",
+          "value": [
+            "0f"
+          ]
+        },
+        {
+          "valueName": "w_out_u.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_u.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_v.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_v.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_w.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_w.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_pressure.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_pressure.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_positions.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_positions.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_velocities.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_velocities.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}
