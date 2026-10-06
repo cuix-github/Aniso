@@ -24,11 +24,20 @@ from PIL import Image
 
 
 class Sim:
-    def __init__(self, nx, ny, rho_l=1000.0, rho_g=1.0, alpha_l=0.97, alpha_g=0.9, g=-9.8):
+    def __init__(self, nx, ny, rho_l=1000.0, rho_g=1.0, alpha_l=0.97, alpha_g=0.9, g=-9.8,
+                 escape=False, esc_phi=0.3, drag_droplet=1.0, drag_bubble=8.0, buoyancy=2.0):
         self.nx, self.ny, self.dx = nx, ny, 1.0
         self.rho_l, self.rho_g = rho_l, rho_g
         self.alpha = {1: alpha_l, 0: alpha_g}
         self.g = g
+        # Escaped-particle treatment (the paper's droplets and bubbles), OFF by default
+        # so every validated behaviour is unchanged. A liquid particle where the phase
+        # field says air is a droplet (ballistic, gravity + drag); an air particle where
+        # it says liquid is a bubble (buoyancy + drag). Both skip the FLIP blend and the
+        # grid advection until they rejoin their own phase.
+        self.escape, self.esc_phi = escape, esc_phi
+        self.drag_droplet, self.drag_bubble, self.buoyancy = drag_droplet, drag_bubble, buoyancy
+        self.escaped = np.zeros(0, dtype=bool)
         self.u = np.zeros((nx + 1, ny))   # x-velocity on vertical faces
         self.v = np.zeros((nx, ny + 1))   # y-velocity on horizontal faces
         self.pos = np.zeros((0, 2))
@@ -179,17 +188,23 @@ class Sim:
         return np.stack([self._sample_faces(self.u, np.array([0.0, 0.5]), pts),
                          self._sample_faces(self.v, np.array([0.5, 0.0]), pts)], -1)
 
-    def g2p(self, u_old, v_old):
+    def g2p(self, u_old, v_old, skip=None):
         du, dv = self.u - u_old, self.v - v_old
         delta = np.stack([self._sample_faces(du, np.array([0.0, 0.5]), self.pos),
                           self._sample_faces(dv, np.array([0.5, 0.0]), self.pos)], -1)
         pic = self.sample_velocity(self.pos)
         a = np.where(self.typ == 1, self.alpha[1], self.alpha[0])[:, None]
-        self.vel = a * (self.vel + delta) + (1 - a) * pic
+        blended = a * (self.vel + delta) + (1 - a) * pic
+        if skip is not None:
+            blended[skip] = self.vel[skip]
+        self.vel = blended
 
-    def advect(self, dt):
+    def advect(self, dt, ballistic=None):
+        old = self.pos
         mid = self.pos + 0.5 * dt * self.sample_velocity(self.pos)
         self.pos = self.pos + dt * self.sample_velocity(np.clip(mid, 0.51, None))
+        if ballistic is not None and ballistic.any():
+            self.pos[ballistic] = old[ballistic] + dt * self.vel[ballistic]
         lo = 0.51
         hix, hiy = self.nx - 0.51, self.ny - 0.51
         for k, hi in ((0, hix), (1, hiy)):
@@ -203,8 +218,36 @@ class Sim:
         self.v += self.g * dt          # gravity on y-faces
         self._enforce_walls()
         self.project(dt)
-        self.g2p(u_star, v_star)
-        self.advect(dt)
+        esc = None
+        if self.escape:
+            # Escape detection from the OTHER phase's local number density, which is
+            # self-excluding: a particle's own splat cannot mask it (phi-based
+            # detection fails for droplets because a lone liquid particle's own mass,
+            # through Eq. 7's square root, still reads as phi ~ 0.45).
+            ones_air = (self.typ == 0).astype(float)
+            ones_liq = 1.0 - ones_air
+            fu, fv = self._face_frames()
+            au, lu = self._splat(self.u.shape, fu, [ones_air, ones_liq])
+            av, lv = self._splat(self.v.shape, fv, [ones_air, ones_liq])
+            thresh = (1.0 - self.esc_phi) * self.rho0_face
+            frac_air = 0.5 * (self._sample_faces(au, np.array([0.0, 0.5]), self.pos) +
+                              self._sample_faces(av, np.array([0.5, 0.0]), self.pos))
+            frac_liq = 0.5 * (self._sample_faces(lu, np.array([0.0, 0.5]), self.pos) +
+                              self._sample_faces(lv, np.array([0.5, 0.0]), self.pos))
+            drop = (self.typ == 1) & (frac_air > thresh)
+            bub = (self.typ == 0) & (frac_liq > thresh)
+            esc = drop | bub
+            self.escaped = esc
+        self.g2p(u_star, v_star, skip=esc)
+        if esc is not None and esc.any():
+            vg = self.sample_velocity(self.pos)
+            d = drop
+            self.vel[d, 1] += self.g * dt
+            self.vel[d] += self.drag_droplet * dt * (vg[d] - self.vel[d])
+            b = bub
+            self.vel[b, 1] += self.buoyancy * abs(self.g) * dt
+            self.vel[b] += self.drag_bubble * dt * (vg[b] - self.vel[b])
+        self.advect(dt, ballistic=esc)
 
     def run(self, frames, dt_frame, cfl=0.5, on_frame=None):
         for f in range(frames):
