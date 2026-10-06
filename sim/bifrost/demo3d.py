@@ -127,7 +127,7 @@ def main():
         print("smoke ok:", diags[:, 0].tolist(), "max div", diags[:, 2].max())
         return
 
-    nx, ny, nz, dt, sub = 64, 48, 32, 0.015, 160
+    nx, ny, nz, dt, sub = 64, 48, 32, 0.015, 480
     d, typ, diags = run_bifrost3("dam", nx, ny, nz,
                                  lambda x, y, z: (x < 20) & (y < 36), sub, dt)
     print(f"run done: CG iters mean {diags[:, 0].mean():.1f} max {diags[:, 0].max():.0f}; "
@@ -135,7 +135,7 @@ def main():
     frames_dir = os.path.join(d, "png")
     os.makedirs(frames_dir, exist_ok=True)
     out_idx = 0
-    for k in range(0, sub, 2):
+    for k in range(0, sub, 3):
         pos = np.load(os.path.join(d, f"frame.{k:04d}.npy"))
         render_frame(pos, typ, nx, ny, nz).save(
             os.path.join(frames_dir, f"fr{out_idx:04d}.png"))
