@@ -25,7 +25,8 @@ from PIL import Image
 
 class Sim:
     def __init__(self, nx, ny, rho_l=1000.0, rho_g=1.0, alpha_l=0.97, alpha_g=0.9, g=-9.8,
-                 escape=False, esc_phi=0.3, drag_droplet=1.0, drag_bubble=8.0, buoyancy=2.0):
+                 escape=False, esc_phi=0.3, drag_droplet=1.0, drag_bubble=8.0, buoyancy=2.0,
+                 st=False, sub_advect=False):
         self.nx, self.ny, self.dx = nx, ny, 1.0
         self.rho_l, self.rho_g = rho_l, rho_g
         self.alpha = {1: alpha_l, 0: alpha_g}
@@ -38,6 +39,17 @@ class Sim:
         self.escape, self.esc_phi = escape, esc_phi
         self.drag_droplet, self.drag_bubble, self.buoyancy = drag_droplet, drag_bubble, buoyancy
         self.escaped = np.zeros(0, dtype=bool)
+        # ST-FLIP (Braun et al. 2026) spatiotemporal sampling, OFF by default. Each
+        # particle carries a time jitter tau in (-1/2, 1/2] slab units; splats are
+        # weighted by the paper's one-sided temporal poly6 kernel (peak at +1/2), and
+        # advection folds the jitter change into one per-particle step of length
+        # dt*(1 + tau_new - tau_old), sub-stepped at local CFL <= 1. Spatial kernel
+        # deviation from the paper (ours is radial, theirs separable) noted; the
+        # milestone-4 finding says kernel shape barely moves the fields.
+        self.st = st
+        self.sub_advect = sub_advect
+        self.st_rng = np.random.default_rng(7)
+        self.tau = np.zeros(0)
         self.u = np.zeros((nx + 1, ny))   # x-velocity on vertical faces
         self.v = np.zeros((nx, ny + 1))   # y-velocity on horizontal faces
         self.pos = np.zeros((0, 2))
@@ -59,6 +71,7 @@ class Sim:
         self.pos = np.concatenate(ps)
         self.typ = np.concatenate(ts)
         self.vel = np.zeros_like(self.pos)
+        self.tau = self.st_rng.uniform(-0.5, 0.5, len(self.pos))
 
     def masses(self):
         return np.where(self.typ == 1, self.rho_l, self.rho_g)
@@ -91,8 +104,15 @@ class Sim:
         bv = np.floor(pv + 0.5).astype(np.int64)
         return (bu, pu - bu), (bv, pv - bv)
 
+    @staticmethod
+    def _wt(tau):
+        """ST-FLIP temporal kernel: one-sided poly6 peaking at the slab end (+1/2)."""
+        return (35.0 / 16.0) * np.maximum(1.0 - (tau - 0.5) ** 2, 0.0) ** 3
+
     def p2g(self):
         m = self.masses()
+        if self.st:
+            m = m * self._wt(self.tau)
         fu, fv = self._face_frames()
         mu, pu = self._splat(self.u.shape, fu, [m, m * self.vel[:, 0]])
         mv, pv = self._splat(self.v.shape, fv, [m, m * self.vel[:, 1]])
@@ -116,13 +136,22 @@ class Sim:
         return np.minimum(phi, 1.0)
 
     def calibrate(self):
-        """rho0_face: the raw mass a face accumulates from a uniform all-liquid seeding."""
-        probe = Sim(8, 8, self.rho_l, self.rho_g)
+        """rho0_face: the raw mass a face accumulates from a uniform all-liquid seeding,
+        with the same temporal weighting the simulation will use (averaged over a few
+        jitter realizations when ST sampling is on, per the ST-FLIP m0 recipe)."""
+        probe = Sim(8, 8, self.rho_l, self.rho_g, st=self.st)
         probe.seed(lambda x, y: np.ones_like(x, dtype=bool), jitter=0.0)
-        m = probe.masses()
         fu, _ = probe._face_frames()
-        (mu,) = probe._splat(probe.u.shape, fu, [m])
-        self.rho0_face = np.median(mu[2:-2, 2:-2]) / self.rho_l
+        reps = 5 if self.st else 1
+        acc = []
+        for _ in range(reps):
+            m = probe.masses()
+            if self.st:
+                probe.tau = probe.st_rng.uniform(-0.5, 0.5, len(probe.pos))
+                m = m * self._wt(probe.tau)
+            (mu,) = probe._splat(probe.u.shape, fu, [m])
+            acc.append(np.median(mu[2:-2, 2:-2]))
+        self.rho0_face = float(np.mean(acc)) / self.rho_l
 
     def project(self, dt, tol=1e-6, max_iter=4000):
         phi_u = self.phase(self.mu)
@@ -247,7 +276,37 @@ class Sim:
             b = bub
             self.vel[b, 1] += self.buoyancy * abs(self.g) * dt
             self.vel[b] += self.drag_bubble * dt * (vg[b] - self.vel[b])
-        self.advect(dt, ballistic=esc)
+        if self.st or self.sub_advect:
+            self._advect_st(dt)
+        else:
+            self.advect(dt, ballistic=esc)
+
+    def _advect_st(self, dt, cfl_local=1.0, max_rounds=64):
+        """ST-FLIP advection: each particle advances by dt*(1 + tau_new - tau_old),
+        folding the jitter change into one step, sub-stepped at local CFL <= 1."""
+        if self.st:
+            tau_new = self.st_rng.uniform(-0.5, 0.5, len(self.pos))
+            remaining = dt * (1.0 + tau_new - self.tau)
+            self.tau = tau_new
+        else:
+            remaining = np.full(len(self.pos), float(dt))
+        for _ in range(max_rounds):
+            active = remaining > 1e-12
+            if not active.any():
+                break
+            v = self.sample_velocity(self.pos)
+            speed = np.maximum(np.abs(v).max(1), 1e-9)
+            dt_sub = np.where(active, np.minimum(remaining, cfl_local * self.dx / speed), 0.0)
+            mid = self.pos + 0.5 * dt_sub[:, None] * v
+            v2 = self.sample_velocity(np.clip(mid, 0.51, None))
+            self.pos = self.pos + dt_sub[:, None] * v2
+            remaining = remaining - dt_sub
+        lo = 0.51
+        hix, hiy = self.nx - 0.51, self.ny - 0.51
+        for k, hi in ((0, hix), (1, hiy)):
+            below, above = self.pos[:, k] < lo, self.pos[:, k] > hi
+            self.pos[:, k] = np.clip(self.pos[:, k], lo, hi)
+            self.vel[below | above, k] = 0.0
 
     def run(self, frames, dt_frame, cfl=0.5, on_frame=None):
         for f in range(frames):
