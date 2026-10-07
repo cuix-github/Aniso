@@ -140,6 +140,24 @@
           "portDefault": "0"
         },
         {
+          "portName": "adapt",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "0"
+        },
+        {
+          "portName": "coarse_gain",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "1f"
+        },
+        {
+          "portName": "ws_epsilon",
+          "portDirection": "input",
+          "portType": "float",
+          "portDefault": "16f"
+        },
+        {
           "portName": "path_u_mass",
           "portDirection": "input",
           "portType": "string",
@@ -219,6 +237,120 @@
         },
         {
           "portName": "path_w_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u_ws",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v_ws",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w_ws",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_scale_in",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u2_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u2_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u2_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u2_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u2_ws",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v2_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v2_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v2_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v2_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v2_ws",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w2_mass",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w2_mom",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w2_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w2_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w2_ws",
           "portDirection": "input",
           "portType": "string",
           "portDefault": ""
@@ -320,6 +452,28 @@
         },
         {
           "portName": "ok_out_wtph",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_scale_out",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_scale_out",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_phase_state",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_phase_state",
           "portDirection": "output",
           "portType": "bool"
         },
@@ -447,6 +601,82 @@
           "nodeType": "File::NumPy::read_NumPy"
         },
         {
+          "nodeName": "r_u_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_scale_in",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u2_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u2_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u2_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u2_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u2_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v2_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v2_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v2_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v2_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v2_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w2_mass",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w2_mom",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w2_phase",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w2_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w2_ws",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
           "nodeName": "r_positions",
           "nodeType": "File::NumPy::read_NumPy"
         },
@@ -484,6 +714,14 @@
         },
         {
           "nodeName": "w_out_wtph",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_scale_out",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_phase_state",
           "nodeType": "File::NumPy::write_NumPy"
         },
         {
@@ -583,6 +821,18 @@
         {
           "source": ".step_index",
           "target": "step.step_index"
+        },
+        {
+          "source": ".adapt",
+          "target": "step.adapt"
+        },
+        {
+          "source": ".coarse_gain",
+          "target": "step.coarse_gain"
+        },
+        {
+          "source": ".ws_epsilon",
+          "target": "step.ws_epsilon"
         },
         {
           "source": ".path_u_mass",
@@ -753,6 +1003,234 @@
           "target": "step.w_wt"
         },
         {
+          "source": ".path_u_ws",
+          "target": "r_u_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u_ws.type"
+        },
+        {
+          "source": "r_u_ws.data",
+          "target": "step.u_ws"
+        },
+        {
+          "source": ".path_v_ws",
+          "target": "r_v_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v_ws.type"
+        },
+        {
+          "source": "r_v_ws.data",
+          "target": "step.v_ws"
+        },
+        {
+          "source": ".path_w_ws",
+          "target": "r_w_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w_ws.type"
+        },
+        {
+          "source": "r_w_ws.data",
+          "target": "step.w_ws"
+        },
+        {
+          "source": ".path_scale_in",
+          "target": "r_scale_in.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_scale_in.type"
+        },
+        {
+          "source": "r_scale_in.data",
+          "target": "step.scale_in"
+        },
+        {
+          "source": ".path_u2_mass",
+          "target": "r_u2_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u2_mass.type"
+        },
+        {
+          "source": "r_u2_mass.data",
+          "target": "step.u2_mass"
+        },
+        {
+          "source": ".path_u2_mom",
+          "target": "r_u2_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u2_mom.type"
+        },
+        {
+          "source": "r_u2_mom.data",
+          "target": "step.u2_mom"
+        },
+        {
+          "source": ".path_u2_phase",
+          "target": "r_u2_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u2_phase.type"
+        },
+        {
+          "source": "r_u2_phase.data",
+          "target": "step.u2_phase"
+        },
+        {
+          "source": ".path_u2_wt",
+          "target": "r_u2_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u2_wt.type"
+        },
+        {
+          "source": "r_u2_wt.data",
+          "target": "step.u2_wt"
+        },
+        {
+          "source": ".path_u2_ws",
+          "target": "r_u2_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u2_ws.type"
+        },
+        {
+          "source": "r_u2_ws.data",
+          "target": "step.u2_ws"
+        },
+        {
+          "source": ".path_v2_mass",
+          "target": "r_v2_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v2_mass.type"
+        },
+        {
+          "source": "r_v2_mass.data",
+          "target": "step.v2_mass"
+        },
+        {
+          "source": ".path_v2_mom",
+          "target": "r_v2_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v2_mom.type"
+        },
+        {
+          "source": "r_v2_mom.data",
+          "target": "step.v2_mom"
+        },
+        {
+          "source": ".path_v2_phase",
+          "target": "r_v2_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v2_phase.type"
+        },
+        {
+          "source": "r_v2_phase.data",
+          "target": "step.v2_phase"
+        },
+        {
+          "source": ".path_v2_wt",
+          "target": "r_v2_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v2_wt.type"
+        },
+        {
+          "source": "r_v2_wt.data",
+          "target": "step.v2_wt"
+        },
+        {
+          "source": ".path_v2_ws",
+          "target": "r_v2_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v2_ws.type"
+        },
+        {
+          "source": "r_v2_ws.data",
+          "target": "step.v2_ws"
+        },
+        {
+          "source": ".path_w2_mass",
+          "target": "r_w2_mass.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w2_mass.type"
+        },
+        {
+          "source": "r_w2_mass.data",
+          "target": "step.w2_mass"
+        },
+        {
+          "source": ".path_w2_mom",
+          "target": "r_w2_mom.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w2_mom.type"
+        },
+        {
+          "source": "r_w2_mom.data",
+          "target": "step.w2_mom"
+        },
+        {
+          "source": ".path_w2_phase",
+          "target": "r_w2_phase.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w2_phase.type"
+        },
+        {
+          "source": "r_w2_phase.data",
+          "target": "step.w2_phase"
+        },
+        {
+          "source": ".path_w2_wt",
+          "target": "r_w2_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w2_wt.type"
+        },
+        {
+          "source": "r_w2_wt.data",
+          "target": "step.w2_wt"
+        },
+        {
+          "source": ".path_w2_ws",
+          "target": "r_w2_ws.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w2_ws.type"
+        },
+        {
+          "source": "r_w2_ws.data",
+          "target": "step.w2_ws"
+        },
+        {
           "source": ".path_positions",
           "target": "r_positions.file_path"
         },
@@ -871,6 +1349,30 @@
         {
           "source": "w_out_wtph.success",
           "target": ".ok_out_wtph"
+        },
+        {
+          "source": ".path_scale_out",
+          "target": "w_scale_out.file_path"
+        },
+        {
+          "source": "step.scale_out",
+          "target": "w_scale_out.data"
+        },
+        {
+          "source": "w_scale_out.success",
+          "target": ".ok_scale_out"
+        },
+        {
+          "source": ".path_out_phase_state",
+          "target": "w_out_phase_state.file_path"
+        },
+        {
+          "source": "step.out_phase_state",
+          "target": "w_out_phase_state.data"
+        },
+        {
+          "source": "w_out_phase_state.success",
+          "target": ".ok_out_phase_state"
         },
         {
           "source": ".path_out_positions",
@@ -1021,6 +1523,26 @@
         },
         {
           "valueName": "w_out_wtph.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_scale_out.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_scale_out.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_phase_state.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_phase_state.create_directories",
           "valueType": "bool",
           "value": "true"
         },
