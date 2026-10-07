@@ -122,6 +122,24 @@
           "portDefault": "1f"
         },
         {
+          "portName": "st",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "0"
+        },
+        {
+          "portName": "st_seed",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "7"
+        },
+        {
+          "portName": "step_index",
+          "portDirection": "input",
+          "portType": "int",
+          "portDefault": "0"
+        },
+        {
           "portName": "path_u_mass",
           "portDirection": "input",
           "portType": "string",
@@ -177,6 +195,30 @@
         },
         {
           "portName": "path_particle_phase",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_tau_in",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_u_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_v_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_w_wt",
           "portDirection": "input",
           "portType": "string",
           "portDefault": ""
@@ -249,6 +291,39 @@
           "portType": "bool"
         },
         {
+          "portName": "path_tau_out",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_tau_out",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_wt",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_wt",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_wtph",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_wtph",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
           "portName": "path_out_positions",
           "portDirection": "input",
           "portType": "string",
@@ -267,6 +342,17 @@
         },
         {
           "portName": "ok_out_velocities",
+          "portDirection": "output",
+          "portType": "bool"
+        },
+        {
+          "portName": "path_out_pos_synced",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "ok_out_pos_synced",
           "portDirection": "output",
           "portType": "bool"
         },
@@ -345,6 +431,22 @@
           "nodeType": "File::NumPy::read_NumPy"
         },
         {
+          "nodeName": "r_tau_in",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_u_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_v_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_w_wt",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
           "nodeName": "r_positions",
           "nodeType": "File::NumPy::read_NumPy"
         },
@@ -373,11 +475,27 @@
           "nodeType": "File::NumPy::write_NumPy"
         },
         {
+          "nodeName": "w_tau_out",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_wt",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_wtph",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
           "nodeName": "w_out_positions",
           "nodeType": "File::NumPy::write_NumPy"
         },
         {
           "nodeName": "w_out_velocities",
+          "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "w_out_pos_synced",
           "nodeType": "File::NumPy::write_NumPy"
         }
       ],
@@ -453,6 +571,18 @@
         {
           "source": ".rho0_face",
           "target": "step.rho0_face"
+        },
+        {
+          "source": ".st",
+          "target": "step.st"
+        },
+        {
+          "source": ".st_seed",
+          "target": "step.st_seed"
+        },
+        {
+          "source": ".step_index",
+          "target": "step.step_index"
         },
         {
           "source": ".path_u_mass",
@@ -575,6 +705,54 @@
           "target": "step.particle_phase"
         },
         {
+          "source": ".path_tau_in",
+          "target": "r_tau_in.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_tau_in.type"
+        },
+        {
+          "source": "r_tau_in.data",
+          "target": "step.tau_in"
+        },
+        {
+          "source": ".path_u_wt",
+          "target": "r_u_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_u_wt.type"
+        },
+        {
+          "source": "r_u_wt.data",
+          "target": "step.u_wt"
+        },
+        {
+          "source": ".path_v_wt",
+          "target": "r_v_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_v_wt.type"
+        },
+        {
+          "source": "r_v_wt.data",
+          "target": "step.v_wt"
+        },
+        {
+          "source": ".path_w_wt",
+          "target": "r_w_wt.file_path"
+        },
+        {
+          "source": "t_flt.output",
+          "target": "r_w_wt.type"
+        },
+        {
+          "source": "r_w_wt.data",
+          "target": "step.w_wt"
+        },
+        {
           "source": ".path_positions",
           "target": "r_positions.file_path"
         },
@@ -659,6 +837,42 @@
           "target": ".ok_out_escaped"
         },
         {
+          "source": ".path_tau_out",
+          "target": "w_tau_out.file_path"
+        },
+        {
+          "source": "step.tau_out",
+          "target": "w_tau_out.data"
+        },
+        {
+          "source": "w_tau_out.success",
+          "target": ".ok_tau_out"
+        },
+        {
+          "source": ".path_out_wt",
+          "target": "w_out_wt.file_path"
+        },
+        {
+          "source": "step.out_wt",
+          "target": "w_out_wt.data"
+        },
+        {
+          "source": "w_out_wt.success",
+          "target": ".ok_out_wt"
+        },
+        {
+          "source": ".path_out_wtph",
+          "target": "w_out_wtph.file_path"
+        },
+        {
+          "source": "step.out_wtph",
+          "target": "w_out_wtph.data"
+        },
+        {
+          "source": "w_out_wtph.success",
+          "target": ".ok_out_wtph"
+        },
+        {
           "source": ".path_out_positions",
           "target": "w_out_positions.file_path"
         },
@@ -681,6 +895,18 @@
         {
           "source": "w_out_velocities.success",
           "target": ".ok_out_velocities"
+        },
+        {
+          "source": ".path_out_pos_synced",
+          "target": "w_out_pos_synced.file_path"
+        },
+        {
+          "source": "step.out_pos_synced",
+          "target": "w_out_pos_synced.data"
+        },
+        {
+          "source": "w_out_pos_synced.success",
+          "target": ".ok_out_pos_synced"
         },
         {
           "source": "step.iterations_used",
@@ -769,6 +995,36 @@
           "value": "true"
         },
         {
+          "valueName": "w_tau_out.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_tau_out.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_wt.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_wt.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_wtph.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_wtph.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
           "valueName": "w_out_positions.overwrite",
           "valueType": "bool",
           "value": "true"
@@ -785,6 +1041,16 @@
         },
         {
           "valueName": "w_out_velocities.create_directories",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_pos_synced.overwrite",
+          "valueType": "bool",
+          "value": "true"
+        },
+        {
+          "valueName": "w_out_pos_synced.create_directories",
           "valueType": "bool",
           "value": "true"
         }

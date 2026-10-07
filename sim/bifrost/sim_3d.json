@@ -238,6 +238,36 @@
      "portDirection": "input",
      "portType": "string",
      "portDefault": ""
+    },
+    {
+     "portName": "st",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "0"
+    },
+    {
+     "portName": "st_seed",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "7"
+    },
+    {
+     "portName": "path_tau",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_wtph",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
     }
    ],
    "compounds": [
@@ -460,6 +490,46 @@
        "portName": "preconditioner",
        "portDirection": "input",
        "portType": "int"
+      },
+      {
+       "portName": "st",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "st_seed",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "tau_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "tau_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "wt_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "wt_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "wtph_in",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "wtph_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
       }
      ],
      "compounds": [],
@@ -675,6 +745,38 @@
       {
        "nodeName": "ok_fe",
        "nodeType": "Core::Type_Conversion::to_float"
+      },
+      {
+       "nodeName": "set_wt",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "idx_i",
+       "nodeType": "Core::Type_Conversion::to_int"
+      },
+      {
+       "nodeName": "sp4_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sw_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sp4_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sw_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sp4_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sw_w",
+       "nodeType": "Geometry::Query::sample_volume"
       }
      ],
      "connections": [
@@ -695,7 +797,7 @@
        "target": "set_my.geometry"
       },
       {
-       "source": "set_mz.out_geometry",
+       "source": "set_wt.out_geometry",
        "target": "set_ph.geometry"
       },
       {
@@ -711,7 +813,7 @@
        "target": "set_my.data"
       },
       {
-       "source": ".particle_phase",
+       "source": ".wtph_in",
        "target": "set_ph.data"
       },
       {
@@ -775,15 +877,15 @@
        "target": "sp3_u.volume"
       },
       {
-       "source": "sp3_u.out_volume",
+       "source": "sp4_u.out_volume",
        "target": "sm_u.volume"
       },
       {
-       "source": "sp3_u.out_volume",
+       "source": "sp4_u.out_volume",
        "target": "so_u.volume"
       },
       {
-       "source": "sp3_u.out_volume",
+       "source": "sp4_u.out_volume",
        "target": "sq_u.volume"
       },
       {
@@ -879,15 +981,15 @@
        "target": "sp3_v.volume"
       },
       {
-       "source": "sp3_v.out_volume",
+       "source": "sp4_v.out_volume",
        "target": "sm_v.volume"
       },
       {
-       "source": "sp3_v.out_volume",
+       "source": "sp4_v.out_volume",
        "target": "so_v.volume"
       },
       {
-       "source": "sp3_v.out_volume",
+       "source": "sp4_v.out_volume",
        "target": "sq_v.volume"
       },
       {
@@ -1031,7 +1133,7 @@
        "target": ".momy_out"
       },
       {
-       "source": "step.out_positions",
+       "source": "step.out_pos_synced",
        "target": "w_pos.data"
       },
       {
@@ -1199,15 +1301,15 @@
        "target": "sp3_w.volume"
       },
       {
-       "source": "sp3_w.out_volume",
+       "source": "sp4_w.out_volume",
        "target": "sm_w.volume"
       },
       {
-       "source": "sp3_w.out_volume",
+       "source": "sp4_w.out_volume",
        "target": "so_w.volume"
       },
       {
-       "source": "sp3_w.out_volume",
+       "source": "sp4_w.out_volume",
        "target": "sq_w.volume"
       },
       {
@@ -1281,6 +1383,146 @@
       {
        "source": "step.out_mom_z",
        "target": ".momz_out"
+      },
+      {
+       "source": "set_mz.out_geometry",
+       "target": "set_wt.geometry"
+      },
+      {
+       "source": ".wt_in",
+       "target": "set_wt.data"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_wt.default"
+      },
+      {
+       "source": "sp3_u.out_volume",
+       "target": "sp4_u.volume"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "sp4_u.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp4_u.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp4_u.add_to_denominator"
+      },
+      {
+       "source": "sp4_u.out_volume",
+       "target": "sw_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "sw_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sw_u.default"
+      },
+      {
+       "source": "sw_u.sampled_data",
+       "target": "step.u_wt"
+      },
+      {
+       "source": "sp3_v.out_volume",
+       "target": "sp4_v.volume"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "sp4_v.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp4_v.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp4_v.add_to_denominator"
+      },
+      {
+       "source": "sp4_v.out_volume",
+       "target": "sw_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "sw_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sw_v.default"
+      },
+      {
+       "source": "sw_v.sampled_data",
+       "target": "step.v_wt"
+      },
+      {
+       "source": "sp3_w.out_volume",
+       "target": "sp4_w.volume"
+      },
+      {
+       "source": "spos_w.out_geometry",
+       "target": "sp4_w.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp4_w.radius"
+      },
+      {
+       "source": ".add_to_denominator",
+       "target": "sp4_w.add_to_denominator"
+      },
+      {
+       "source": "sp4_w.out_volume",
+       "target": "sw_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "sw_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sw_w.default"
+      },
+      {
+       "source": "sw_w.sampled_data",
+       "target": "step.w_wt"
+      },
+      {
+       "source": ".st",
+       "target": "step.st"
+      },
+      {
+       "source": ".st_seed",
+       "target": "step.st_seed"
+      },
+      {
+       "source": ".current_index",
+       "target": "idx_i.from"
+      },
+      {
+       "source": "idx_i.int",
+       "target": "step.step_index"
+      },
+      {
+       "source": ".tau_in",
+       "target": "step.tau_in"
+      },
+      {
+       "source": "step.tau_out",
+       "target": ".tau_out2"
+      },
+      {
+       "source": "step.out_wt",
+       "target": ".wt_out2"
+      },
+      {
+       "source": "step.out_wtph",
+       "target": ".wtph_out2"
       }
      ],
      "values": [
@@ -1775,6 +2017,131 @@
        "valueName": "sp3_w.coarsest_depth",
        "valueType": "int",
        "value": "0"
+      },
+      {
+       "valueName": "sp4_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp4_u.properties",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sp4_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp4_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sw_u.property",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sw_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sp4_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp4_v.properties",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sp4_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp4_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sw_v.property",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sw_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sp4_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp4_w.properties",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sp4_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp4_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp4_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sw_w.property",
+       "valueType": "string",
+       "value": "voxel_wt"
+      },
+      {
+       "valueName": "sw_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "set_wt.property",
+       "valueType": "string",
+       "value": "voxel_wt"
       }
      ],
      "iterateCompound": {
@@ -1808,6 +2175,21 @@
         "portKind": "state",
         "inputPortName": "ok_in",
         "outputPortName": "ok_out"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "tau_in",
+        "outputPortName": "tau_out2"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "wt_in",
+        "outputPortName": "wt_out2"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "wtph_in",
+        "outputPortName": "wtph_out2"
        }
       ]
      }
@@ -1872,6 +2254,18 @@
     },
     {
      "nodeName": "r_probes_w",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_tau",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_wt",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_wtph",
      "nodeType": "File::NumPy::read_NumPy"
     }
    ],
@@ -2115,6 +2509,50 @@
     {
      "source": "r_probes_w.data",
      "target": "loop.probes_w"
+    },
+    {
+     "source": ".st",
+     "target": "loop.st"
+    },
+    {
+     "source": ".st_seed",
+     "target": "loop.st_seed"
+    },
+    {
+     "source": ".path_tau",
+     "target": "r_tau.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_tau.type"
+    },
+    {
+     "source": "r_tau.data",
+     "target": "loop.tau_in"
+    },
+    {
+     "source": ".path_wt",
+     "target": "r_wt.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_wt.type"
+    },
+    {
+     "source": "r_wt.data",
+     "target": "loop.wt_in"
+    },
+    {
+     "source": ".path_wtph",
+     "target": "r_wtph.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_wtph.type"
+    },
+    {
+     "source": "r_wtph.data",
+     "target": "loop.wtph_in"
     }
    ],
    "values": [
