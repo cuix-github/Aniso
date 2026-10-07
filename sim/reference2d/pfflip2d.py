@@ -287,11 +287,11 @@ class Sim:
             self.vel[b, 1] += self.buoyancy * abs(self.g) * dt
             self.vel[b] += self.drag_bubble * dt * (vg[b] - self.vel[b])
         if self.st or self.sub_advect:
-            self._advect_st(dt)
+            self._advect_st(dt, ballistic=esc)
         else:
             self.advect(dt, ballistic=esc)
 
-    def _advect_st(self, dt, cfl_local=1.0, max_rounds=64):
+    def _advect_st(self, dt, ballistic=None, cfl_local=1.0, max_rounds=64):
         """ST-FLIP advection: each particle advances by dt*(1 + tau_new - tau_old),
         folding the jitter change into one step, sub-stepped at local CFL <= 1."""
         if self.st:
@@ -306,6 +306,10 @@ class Sim:
             self.tau = tau_new
         else:
             remaining = np.full(len(self.pos), float(dt))
+        if ballistic is not None and ballistic.any():
+            # escaped particles fly on their own velocity for their full jittered step
+            self.pos[ballistic] += remaining[ballistic, None] * self.vel[ballistic]
+            remaining = np.where(ballistic, 0.0, remaining)
         for _ in range(max_rounds):
             active = remaining > 1e-12
             if not active.any():
