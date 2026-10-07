@@ -72,6 +72,10 @@ class Panel:
 
 
 def main():
+    import sys
+    global TOTAL_T
+    if len(sys.argv) > 1:
+        TOTAL_T = float(sys.argv[1])
     os.makedirs(FRAMES_DIR, exist_ok=True)
     panels = [
         Panel("plain FLIP - no air (small dt)", SinglePhaseSim, DT_SMALL, sub_advect=True),
