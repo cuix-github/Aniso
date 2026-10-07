@@ -26,7 +26,7 @@ from PIL import Image
 class Sim:
     def __init__(self, nx, ny, rho_l=1000.0, rho_g=1.0, alpha_l=0.97, alpha_g=0.9, g=-9.8,
                  escape=False, esc_phi=0.3, drag_droplet=1.0, drag_bubble=8.0, buoyancy=2.0,
-                 st=False, sub_advect=False):
+                 st=False, sub_advect=False, adapt=False):
         self.nx, self.ny, self.dx = nx, ny, 1.0
         self.rho_l, self.rho_g = rho_l, rho_g
         self.alpha = {1: alpha_l, 0: alpha_g}
@@ -48,6 +48,13 @@ class Sim:
         # milestone-4 finding says kernel shape barely moves the fields.
         self.st = st
         self.sub_advect = sub_advect
+        # Adaptive particles (paper Section 5, 2D spec): air particles in deep air
+        # merge 4-to-1 into scale-2 particles (mass x4, splat radius x2); coarse
+        # particles split back near the interface or walls. The per-size blend
+        # correction equalizes viscosity: (1-alpha_coarse) = (1-alpha_fine)/scale^2.
+        self.adapt = adapt
+        self.scale = np.zeros(0)
+        self.coarse_gain = 1.0
         self.st_rng = np.random.default_rng(7)
         self.tau = np.zeros(0)
         self.u = np.zeros((nx + 1, ny))   # x-velocity on vertical faces
@@ -71,31 +78,49 @@ class Sim:
         self.pos = np.concatenate(ps)
         self.typ = np.concatenate(ts)
         self.vel = np.zeros_like(self.pos)
+        self.scale = np.ones(len(self.pos))
         self.tau = np.zeros(len(self.pos))      # particles start synchronized
         self.xi = np.ones(len(self.pos))        # per-particle jitter strength
 
     def masses(self):
-        return np.where(self.typ == 1, self.rho_l, self.rho_g)
+        m = np.where(self.typ == 1, self.rho_l, self.rho_g)
+        if self.adapt:
+            m = m * self.scale ** 2 * np.where(self.scale > 1.5, self.coarse_gain, 1.0)
+        return m
 
     # --- Eq. 6 kernel weights against a set of face centres, vectorised over a 3x3 stencil
     def _splat(self, centres_shape, face_of, values_list):
         """Splat each entry of values_list (per-particle scalars) onto faces. face_of maps a
-        particle to its base face index; the kernel has radius r = dx so a 3x3 stencil covers
-        it. Returns the accumulated arrays."""
+        particle to its base face index. Uniform runs use the r = dx kernel on a 3x3
+        stencil; adaptive runs splat each size group with its own radius."""
         out = [np.zeros(centres_shape) for _ in values_list]
+        if self.adapt and len(self.scale) == len(face_of[0]):
+            for sc in np.unique(self.scale):
+                sel = self.scale == sc
+                self._splat_group(out, centres_shape,
+                                  (face_of[0][sel], face_of[1][sel]),
+                                  [np.asarray(v)[sel] if np.ndim(v) else v
+                                   for v in values_list], float(sc))
+        else:
+            self._splat_group(out, centres_shape, face_of, values_list, 1.0)
+        return out
+
+    @staticmethod
+    def _splat_group(out, centres_shape, face_of, values_list, r):
         base, frac = face_of
-        for di in (-1, 0, 1):
-            for dj in (-1, 0, 1):
+        span = int(np.ceil(r))
+        for di in range(-span, span + 1):
+            for dj in range(-span, span + 1):
                 ii = base[:, 0] + di
                 jj = base[:, 1] + dj
                 ok = (ii >= 0) & (ii < centres_shape[0]) & (jj >= 0) & (jj < centres_shape[1])
-                d2 = (frac[:, 0] - di) ** 2 + (frac[:, 1] - dj) ** 2   # in units of r = dx
+                d2 = ((frac[:, 0] - di) ** 2 + (frac[:, 1] - dj) ** 2) / r ** 2
                 w = np.maximum(1.0 - d2, 0.0) ** 3
                 w = np.where(ok, w, 0.0)
-                iis, jjs = np.clip(ii, 0, centres_shape[0] - 1), np.clip(jj, 0, centres_shape[1] - 1)
+                iis = np.clip(ii, 0, centres_shape[0] - 1)
+                jjs = np.clip(jj, 0, centres_shape[1] - 1)
                 for o, val in zip(out, values_list):
                     np.add.at(o, (iis, jjs), w * val)
-        return out
 
     def _face_frames(self):
         """Base indices and fractional offsets of every particle against u-faces and v-faces."""
@@ -162,6 +187,22 @@ class Sim:
             (mu,) = probe._splat(probe.u.shape, fu, [m])
             acc.append(np.median(mu[2:-2, 2:-2]))
         self.rho0_face = float(np.mean(acc)) / self.rho_l
+        if self.adapt:
+            # measure the raw face mass an all-coarse uniform seeding produces, and
+            # gain-correct coarse masses so fine and coarse fields read identically.
+            probe2 = Sim(8, 8, self.rho_l, self.rho_g)
+            probe2.seed(lambda x, y: np.ones_like(x, dtype=bool), jitter=0.0)
+            keep = (probe2.pos[:, 0] % 2 < 1) & (probe2.pos[:, 1] % 2 < 1)
+            probe2.pos = probe2.pos[keep] + 0.5
+            probe2.typ = probe2.typ[keep]
+            probe2.adapt = True
+            probe2.scale = np.full(len(probe2.pos), 2.0)
+            probe2.coarse_gain = 1.0
+            m2 = probe2.masses() * 4.0 / 4.0
+            fu2, _ = probe2._face_frames()
+            (mu2,) = probe2._splat(probe2.u.shape, fu2, [probe2.masses()])
+            raw2 = np.median(mu2[2:-2, 2:-2]) / self.rho_l
+            self.coarse_gain = float(np.mean(acc)) / self.rho_l / max(raw2, 1e-9)
 
     def project(self, dt, tol=1e-6, max_iter=4000):
         phi_u = self.phase(self.mu)
@@ -232,7 +273,10 @@ class Sim:
         delta = np.stack([self._sample_faces(du, np.array([0.0, 0.5]), self.pos),
                           self._sample_faces(dv, np.array([0.5, 0.0]), self.pos)], -1)
         pic = self.sample_velocity(self.pos)
-        a = np.where(self.typ == 1, self.alpha[1], self.alpha[0])[:, None]
+        a1 = np.where(self.typ == 1, self.alpha[1], self.alpha[0])
+        if self.adapt:
+            a1 = 1.0 - (1.0 - a1) / self.scale ** 2
+        a = a1[:, None]
         blended = a * (self.vel + delta) + (1 - a) * pic
         if skip is not None:
             blended[skip] = self.vel[skip]
@@ -290,6 +334,67 @@ class Sim:
             self._advect_st(dt, ballistic=esc)
         else:
             self.advect(dt, ballistic=esc)
+        if self.adapt:
+            self._adapt_particles()
+
+    def _liq_frac(self):
+        ones_liq = (self.typ == 1).astype(float) * self.scale ** 2
+        fu, fv = self._face_frames()
+        (lu,) = self._splat(self.u.shape, fu, [ones_liq])
+        (lv,) = self._splat(self.v.shape, fv, [ones_liq])
+        return 0.5 * (self._sample_faces(lu, np.array([0.0, 0.5]), self.pos) +
+                      self._sample_faces(lv, np.array([0.5, 0.0]), self.pos)) / self.rho0_face
+
+    def _adapt_particles(self, merge_thresh=0.02, split_thresh=0.05, wall_margin=2.0):
+        lf = self._liq_frac()
+        # ---- split coarse near the interface or walls
+        near_wall = ((self.pos[:, 0] < wall_margin) | (self.pos[:, 0] > self.nx - wall_margin) |
+                     (self.pos[:, 1] < wall_margin) | (self.pos[:, 1] > self.ny - wall_margin))
+        to_split = (self.scale > 1.5) & ((lf > split_thresh) | near_wall)
+        if to_split.any():
+            base = self.pos[to_split]
+            offs = np.array([[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]])
+            new_pos = (base[:, None, :] + offs[None, :, :]).reshape(-1, 2)
+            new_vel = np.repeat(self.vel[to_split], 4, axis=0)
+            keep = ~to_split
+            self.pos = np.concatenate([self.pos[keep], new_pos])
+            self.vel = np.concatenate([self.vel[keep], new_vel])
+            self.typ = np.concatenate([self.typ[keep], np.repeat(self.typ[to_split], 4)])
+            self.scale = np.concatenate([self.scale[keep], np.ones(len(new_pos))])
+            self.tau = np.concatenate([self.tau[keep], np.repeat(self.tau[to_split], 4)])
+            self.xi = np.concatenate([self.xi[keep] if len(self.xi) == len(keep) else
+                                      np.ones(keep.sum()), np.ones(len(new_pos))])
+            lf = np.concatenate([lf[keep], np.full(len(new_pos), 1.0)])  # keep them fine this step
+        # ---- merge deep-air fine 4-to-1 per 2x2 block
+        cand = (self.scale < 1.5) & (self.typ == 0) & (lf < merge_thresh)
+        if cand.sum() >= 4:
+            idx = np.where(cand)[0]
+            blocks = (self.pos[idx, 0] // 2).astype(np.int64) * 100000 + \
+                     (self.pos[idx, 1] // 2).astype(np.int64)
+            order = np.argsort(blocks, kind="stable")
+            idx, blocks = idx[order], blocks[order]
+            _, starts, counts = np.unique(blocks, return_index=True, return_counts=True)
+            merged_members, new_p, new_v, new_tau = [], [], [], []
+            for st_i, ct in zip(starts, counts):
+                take = (ct // 4) * 4
+                for g in range(0, take, 4):
+                    mem = idx[st_i + g: st_i + g + 4]
+                    merged_members.append(mem)
+                    new_p.append(self.pos[mem].mean(0))
+                    new_v.append(self.vel[mem].mean(0))
+                    new_tau.append(self.tau[mem].mean())
+            if merged_members:
+                drop = np.concatenate(merged_members)
+                keep = np.ones(len(self.pos), bool)
+                keep[drop] = False
+                self.pos = np.concatenate([self.pos[keep], np.array(new_p)])
+                self.vel = np.concatenate([self.vel[keep], np.array(new_v)])
+                self.typ = np.concatenate([self.typ[keep],
+                                           np.zeros(len(new_p), dtype=np.int32)])
+                self.scale = np.concatenate([self.scale[keep], np.full(len(new_p), 2.0)])
+                self.tau = np.concatenate([self.tau[keep], np.array(new_tau)])
+                self.xi = np.concatenate([self.xi[keep] if len(self.xi) == len(keep) else
+                                          np.ones(int(keep.sum())), np.ones(len(new_p))])
 
     def _advect_st(self, dt, ballistic=None, cfl_local=1.0, max_rounds=64):
         """ST-FLIP advection: each particle advances by dt*(1 + tau_new - tau_old),
