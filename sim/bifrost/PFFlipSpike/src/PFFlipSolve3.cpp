@@ -33,6 +33,7 @@ struct Level {
 
 void applyA(const Level& L, const Vec& x, Vec& out) {
     const int NX = L.nx, NY = L.ny, NZ = L.nz;
+#pragma omp parallel for schedule(static)
     for (int i = 0; i < NX; ++i)
         for (int j = 0; j < NY; ++j)
             for (int k = 0; k < NZ; ++k) {
@@ -64,7 +65,9 @@ void smooth(Level& L, Vec& x, const Vec& b, int sweeps, Vec& tmp) {
     const double omega = 0.8;
     for (int s = 0; s < sweeps; ++s) {
         applyA(L, x, tmp);
-        for (size_t c = 0; c < x.size(); ++c)
+        const long long n = static_cast<long long>(x.size());
+#pragma omp parallel for schedule(static)
+        for (long long c = 0; c < n; ++c)
             x[c] += omega * L.diagInv[c] * (b[c] - tmp[c]);
     }
 }
@@ -347,7 +350,9 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         if (dq == 0.0) break;
         const double a = rz / dq;
         rPrev = r;
-        for (size_t c = 0; c < ncell; ++c) { p[c] += a * d[c]; r[c] -= a * q[c]; }
+        const long long ncl = static_cast<long long>(ncell);
+#pragma omp parallel for schedule(static)
+        for (long long c = 0; c < ncl; ++c) { p[c] += a * d[c]; r[c] -= a * q[c]; }
         precond(r, z);
         double rzNew = 0.0;   // flexible (Polak-Ribiere) update tolerates the V-cycle
         for (size_t c = 0; c < ncell; ++c) rzNew += (r[c] - rPrev[c]) * z[c];
@@ -390,9 +395,14 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     // sub-stepped at local CFL 1; tau draws are serial for determinism and exported,
     // so lockstep comparisons replay the exact same jitter in the reference.
     Vec du(nu), dv(nv), dw(nw);
-    for (size_t c = 0; c < nu; ++c) du[c] = u[c] - uStar[c];
-    for (size_t c = 0; c < nv; ++c) dv[c] = v[c] - vStar[c];
-    for (size_t c = 0; c < nw; ++c) dw[c] = w[c] - wStar[c];
+    const long long lnu = static_cast<long long>(nu), lnv = static_cast<long long>(nv);
+    const long long lnw = static_cast<long long>(nw);
+#pragma omp parallel for schedule(static)
+    for (long long c = 0; c < lnu; ++c) du[c] = u[c] - uStar[c];
+#pragma omp parallel for schedule(static)
+    for (long long c = 0; c < lnv; ++c) dv[c] = v[c] - vStar[c];
+#pragma omp parallel for schedule(static)
+    for (long long c = 0; c < lnw; ++c) dw[c] = w[c] - wStar[c];
 
     auto sU = [&](const Vec& g, double x, double y, double zc) {
         return sampleGrid(g, NX + 1, NY, NZ, 0.0, 0.5, 0.5, x, y, zc); };
@@ -452,7 +462,9 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     }
 
     std::vector<double> nvx(np), nvy(np), nvz(np);
-    for (size_t pi = 0; pi < np; ++pi) {
+    const long long lnp = static_cast<long long>(np);
+#pragma omp parallel for schedule(static)
+    for (long long pi = 0; pi < lnp; ++pi) {
         const double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
         double vx = pi < velocities.size() ? velocities[pi].x : 0.0;
         double vy = pi < velocities.size() ? velocities[pi].y : 0.0;
@@ -502,8 +514,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     auto outWt = Amino::newMutablePtr<Amino::Array<float>>(np);
     auto outWtPh = Amino::newMutablePtr<Amino::Array<float>>(np);
 
-    double maxSpeed = 0.0;
-    for (size_t pi = 0; pi < np; ++pi) {
+#pragma omp parallel for schedule(dynamic, 1024)
+    for (long long pi = 0; pi < lnp; ++pi) {
         double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
         double vx = nvx[pi], vy = nvy[pi], vz = nvz[pi];
         const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
@@ -564,8 +576,13 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         (*outTau)[pi] = static_cast<float>(tauNew[pi]);
         (*outWt)[pi] = static_cast<float>(wp);
         (*outWtPh)[pi] = static_cast<float>(wp * (liquid ? 1.0 : 0.0));
-        maxSpeed = std::max({maxSpeed, std::fabs(vx), std::fabs(vy), std::fabs(vz)});
     }
+    double maxSpeed = 0.0;
+    for (size_t pi = 0; pi < np; ++pi)
+        maxSpeed = std::max({maxSpeed,
+                             static_cast<double>(std::fabs((*outVel)[pi].x)),
+                             static_cast<double>(std::fabs((*outVel)[pi].y)),
+                             static_cast<double>(std::fabs((*outVel)[pi].z))});
 
     auto outEsc = Amino::newMutablePtr<Amino::Array<float>>(np);
     for (size_t pi = 0; pi < np; ++pi) (*outEsc)[pi] = escFlag[pi] ? 1.0f : 0.0f;
