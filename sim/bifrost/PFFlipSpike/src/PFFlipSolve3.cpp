@@ -219,9 +219,22 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              float tolerance, int preconditioner, int escape, float esc_phi,
              float drag_droplet, float drag_bubble, float buoyancy, float rho0_face,
              int st, int st_seed, int step_index,
+             int adapt, float coarse_gain, float ws_epsilon,
+             const Amino::Array<float>& scale_in,
              const Amino::Array<float>& tau_in,
              const Amino::Array<float>& u_wt, const Amino::Array<float>& v_wt,
              const Amino::Array<float>& w_wt,
+             const Amino::Array<float>& u_ws, const Amino::Array<float>& v_ws,
+             const Amino::Array<float>& w_ws,
+             const Amino::Array<float>& u2_mass, const Amino::Array<float>& u2_mom,
+             const Amino::Array<float>& u2_phase, const Amino::Array<float>& u2_wt,
+             const Amino::Array<float>& u2_ws,
+             const Amino::Array<float>& v2_mass, const Amino::Array<float>& v2_mom,
+             const Amino::Array<float>& v2_phase, const Amino::Array<float>& v2_wt,
+             const Amino::Array<float>& v2_ws,
+             const Amino::Array<float>& w2_mass, const Amino::Array<float>& w2_mom,
+             const Amino::Array<float>& w2_phase, const Amino::Array<float>& w2_wt,
+             const Amino::Array<float>& w2_ws,
              const Amino::Array<float>& u_mass, const Amino::Array<float>& u_mom,
              const Amino::Array<float>& u_phase, const Amino::Array<float>& v_mass,
              const Amino::Array<float>& v_mom, const Amino::Array<float>& v_phase,
@@ -242,6 +255,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              Amino::Ptr<Amino::Array<float>>& pressure,
              Amino::Ptr<Amino::Array<float>>& out_escaped,
              Amino::Ptr<Amino::Array<float>>& tau_out,
+             Amino::Ptr<Amino::Array<float>>& scale_out,
+             Amino::Ptr<Amino::Array<float>>& out_phase_state,
              Amino::Ptr<Amino::Array<float>>& out_wt,
              Amino::Ptr<Amino::Array<float>>& out_wtph,
              Amino::Ptr<Amino::Array<Bifrost::Math::float3>>& out_pos_synced,
@@ -259,16 +274,60 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
 
     // ---- channels -> face velocities (u = mom/mass where mass > 0).
     Vec u(nu, 0.0), v(nv, 0.0), w(nw, 0.0);
-    auto normalize = [](Vec& g, const Amino::Array<float>& mass, const Amino::Array<float>& mom) {
-        const size_t n = std::min({g.size(), mass.size(), mom.size()});
-        for (size_t c = 0; c < n; ++c)
-            g[c] = mass[c] > 0.0f
-                 ? static_cast<double>(mom[c]) / std::max(static_cast<double>(mass[c]), 1e-30)
-                 : 0.0;
+    // Two-tier combination: the stock splat returns weighted MEANS per tier; the
+    // weight SUMS are recovered from the epsilon-inversion channel ws, where the
+    // graph splats the constant 1 with add_to_denominator = eps, so
+    // mean = S/(S+eps)  =>  S = eps*mean/(1-mean). Combined mean of q is then
+    // (S_A q_A + S_B q_B)/(S_A + S_B). With adapt off (or no tier-B channels) the
+    // tier-A channels pass straight through.
+    const bool twoTier = adapt != 0 && u2_mass.size() > 0;
+    const double epsw = ws_epsilon > 0.0f ? ws_epsilon : 16.0;
+    auto wsum = [&](const Amino::Array<float>& ws, size_t k) {
+        const double a = k < ws.size()
+            ? std::clamp(static_cast<double>(ws[k]), 0.0, 0.999999) : 0.0;
+        return epsw * a / (1.0 - a);
     };
-    normalize(u, u_mass, u_mom);
-    normalize(v, v_mass, v_mom);
-    normalize(w, w_mass, w_mom);
+    auto at = [](const Amino::Array<float>& arr, size_t k) {
+        return k < arr.size() ? static_cast<double>(arr[k]) : 0.0;
+    };
+    Vec chM_u(nu), chO_u(nu), chP_u(nu), chW_u(nu);
+    Vec chM_v(nv), chO_v(nv), chP_v(nv), chW_v(nv);
+    Vec chM_w(nw), chO_w(nw), chP_w(nw), chW_w(nw);
+    const bool hasWt = u_wt.size() > 0;
+    auto combine = [&](size_t n, const Amino::Array<float>& mA, const Amino::Array<float>& oA,
+                       const Amino::Array<float>& pA, const Amino::Array<float>& wtA,
+                       const Amino::Array<float>& wsA, const Amino::Array<float>& mB,
+                       const Amino::Array<float>& oB, const Amino::Array<float>& pB,
+                       const Amino::Array<float>& wtB, const Amino::Array<float>& wsB,
+                       Vec& M, Vec& O, Vec& P, Vec& W) {
+        for (size_t k = 0; k < n; ++k) {
+            if (!twoTier) {
+                M[k] = at(mA, k); O[k] = at(oA, k); P[k] = at(pA, k);
+                W[k] = hasWt ? at(wtA, k) : 1.0;
+                continue;
+            }
+            const double sA = wsum(wsA, k), sB = wsum(wsB, k);
+            const double den = sA + sB;
+            if (den < 1e-12) { M[k] = O[k] = P[k] = 0.0; W[k] = hasWt ? 0.0 : 1.0; continue; }
+            M[k] = (sA * at(mA, k) + sB * at(mB, k)) / den;
+            O[k] = (sA * at(oA, k) + sB * at(oB, k)) / den;
+            P[k] = (sA * at(pA, k) + sB * at(pB, k)) / den;
+            W[k] = hasWt ? (sA * at(wtA, k) + sB * at(wtB, k)) / den : 1.0;
+        }
+    };
+    combine(nu, u_mass, u_mom, u_phase, u_wt, u_ws,
+            u2_mass, u2_mom, u2_phase, u2_wt, u2_ws, chM_u, chO_u, chP_u, chW_u);
+    combine(nv, v_mass, v_mom, v_phase, v_wt, v_ws,
+            v2_mass, v2_mom, v2_phase, v2_wt, v2_ws, chM_v, chO_v, chP_v, chW_v);
+    combine(nw, w_mass, w_mom, w_phase, w_wt, w_ws,
+            w2_mass, w2_mom, w2_phase, w2_wt, w2_ws, chM_w, chO_w, chP_w, chW_w);
+    auto normalize = [](Vec& g, const Vec& mass, const Vec& mom) {
+        for (size_t c = 0; c < g.size(); ++c)
+            g[c] = mass[c] > 0.0 ? mom[c] / std::max(mass[c], 1e-30) : 0.0;
+    };
+    normalize(u, chM_u, chO_u);
+    normalize(v, chM_v, chO_v);
+    normalize(w, chM_w, chO_w);
 
     auto walls = [&](Vec& uu, Vec& vv, Vec& ww) {
         for (int j = 0; j < NY; ++j)
@@ -291,17 +350,14 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     // With ST graphs the phase channel arrives premultiplied by the temporal weight
     // and must be divided by the splatted weight channel; an empty wt channel means
     // the plain scheme (wt = 1), keeping every existing graph and driver valid.
-    auto beta = [&](Vec& bb, const Amino::Array<float>& ph, const Amino::Array<float>& wt) {
+    auto beta = [&](Vec& bb, const Vec& ph, const Vec& wt) {
         for (size_t c = 0; c < bb.size(); ++c) {
-            double p = c < ph.size() ? static_cast<double>(ph[c]) : 0.0;
-            if (wt.size() > 0) {
-                const double wc = c < wt.size() ? static_cast<double>(wt[c]) : 0.0;
-                p = wc > 1e-12 ? p / wc : 0.0;
-            }
+            double p = ph[c];
+            if (hasWt) p = wt[c] > 1e-12 ? p / wt[c] : 0.0;
             bb[c] = 1.0 / (rg + (rl - rg) * std::clamp(p, 0.0, 1.0));
         }
     };
-    beta(L.bu, u_phase, u_wt); beta(L.bv, v_phase, v_wt); beta(L.bw, w_phase, w_wt);
+    beta(L.bu, chP_u, chW_u); beta(L.bv, chP_v, chW_v); beta(L.bw, chP_w, chW_w);
     walls(L.bu, L.bv, L.bw);
     buildDiag(L);
     L.x.assign(L.nc(), 0.0); L.b.assign(L.nc(), 0.0); L.r.assign(L.nc(), 0.0);
@@ -390,10 +446,82 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                     (v[F.iv(i, j + 1, k)] - v[F.iv(i, j, k)]) +
                     (w[F.iw(i, j, k + 1)] - w[F.iw(i, j, k)])));
 
-    // ---- g2p (per-phase FLIP blend), escape forces, then advection. With ST on,
-    // each particle advances by dt*(1 + tau_new - tau_old) clamped to [0, 2dt],
-    // sub-stepped at local CFL 1; tau draws are serial for determinism and exported,
-    // so lockstep comparisons replay the exact same jitter in the reference.
+    // ---- particle machinery. Sizes: with adapt on, particles carry a scale
+    // (1 fine, 2 coarse); masses scale as scale^d (d = 2 flat, 3 otherwise) with a
+    // calibrated coarse gain; the FLIP blend uses (1-alpha)/scale^2; deep-air fine
+    // air merges 4-to-1 (8-to-1 in 3D) and coarse splits near the interface or
+    // walls, mirroring the 2D reference's rules.
+    const bool flat = NZ == 1;
+    const bool stOn = st != 0;
+    const bool adOn = adapt != 0;
+    const double dExp = flat ? 2.0 : 3.0;
+    auto scaleOf = [&](size_t pi) {
+        return adOn && pi < scale_in.size() ? static_cast<double>(scale_in[pi]) : 1.0;
+    };
+
+    // count splats (Eq. 6 kernel) at given positions; value = scale^d per particle.
+    auto countSplat = [&](const std::vector<double>& qx, const std::vector<double>& qy,
+                          const std::vector<double>& qz, const std::vector<char>& isLiq,
+                          const std::vector<double>& scl, Vec cntU[2], Vec cntV[2]) {
+        const size_t n = qx.size();
+        for (size_t pi = 0; pi < n; ++pi) {
+            const int ph = isLiq[pi] ? 1 : 0;
+            const double val = std::pow(scl[pi], dExp);
+            for (int grid = 0; grid < 2; ++grid) {
+                const double ox = grid == 0 ? 0.0 : 0.5;
+                const double oy = grid == 0 ? 0.5 : 0.0;
+                const int gx = grid == 0 ? NX + 1 : NX;
+                const int gy = grid == 0 ? NY : NY + 1;
+                Vec* cnt = grid == 0 ? cntU : cntV;
+                const double ax = qx[pi] - ox, ay = qy[pi] - oy, az = qz[pi] - 0.5;
+                const int bx = static_cast<int>(std::floor(ax + 0.5));
+                const int by = static_cast<int>(std::floor(ay + 0.5));
+                const int bz = static_cast<int>(std::floor(az + 0.5));
+                const double fx = ax - bx, fy = ay - by, fz = az - bz;
+                for (int di = -1; di <= 1; ++di)
+                    for (int dj = -1; dj <= 1; ++dj)
+                        for (int dk = -1; dk <= 1; ++dk) {
+                            const int i = bx + di, j = by + dj, k = bz + dk;
+                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= NZ)
+                                continue;
+                            const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
+                                              (fz - dk) * (fz - dk);
+                            const double wgt = std::max(1.0 - d2, 0.0);
+                            if (wgt > 0.0)
+                                cnt[ph][(static_cast<size_t>(i) * gy + j) * NZ + k] +=
+                                    wgt * wgt * wgt * val;
+                        }
+            }
+        }
+    };
+    auto sampleCnt = [&](const Vec& cu, const Vec& cv, double px, double py, double pz) {
+        return 0.5 * (sampleGrid(cu, NX + 1, NY, NZ, 0.0, 0.5, 0.5, px, py, pz) +
+                      sampleGrid(cv, NX, NY + 1, NZ, 0.5, 0.0, 0.5, px, py, pz));
+    };
+
+    std::vector<char> escFlag(np, 0);
+    if ((escape != 0 || adOn) && np > 0) {
+        std::vector<double> qx(np), qy(np), qz(np), scl(np);
+        std::vector<char> isLiq(np);
+        for (size_t pi = 0; pi < np; ++pi) {
+            qx[pi] = positions[pi].x; qy[pi] = positions[pi].y; qz[pi] = positions[pi].z;
+            scl[pi] = scaleOf(pi);
+            isLiq[pi] = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
+        }
+        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
+        Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
+        countSplat(qx, qy, qz, isLiq, scl, cntU, cntV);
+        if (escape != 0) {
+            const double thresh = (1.0 - esc_phi) * rho0_face;
+            for (size_t pi = 0; pi < np; ++pi) {
+                const int other = isLiq[pi] ? 0 : 1;
+                const double frac = sampleCnt(cntU[other], cntV[other],
+                                              qx[pi], qy[pi], qz[pi]);
+                escFlag[pi] = frac > thresh ? 1 : 0;
+            }
+        }
+    }
+
     Vec du(nu), dv(nv), dw(nw);
     const long long lnu = static_cast<long long>(nu), lnv = static_cast<long long>(nv);
     const long long lnw = static_cast<long long>(nw);
@@ -411,66 +539,23 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     auto sW = [&](const Vec& g, double x, double y, double zc) {
         return sampleGrid(g, NX, NY, NZ + 1, 0.5, 0.5, 0.0, x, y, zc); };
 
-    const bool flat = NZ == 1;
-    const bool stOn = st != 0;
     const double lo = 0.51, hx = NX - 0.51, hy = NY - 0.51, hz = NZ - 0.51;
-
-    // ---- escaped-particle detection (unchanged from the escape PR): per-phase
-    // count splats with the Eq. 6 kernel, other-phase density vs calibrated rho0.
-    std::vector<char> escFlag(np, 0);
-    if (escape != 0 && np > 0) {
-        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
-        Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
-        auto splatCounts = [&](double offx, double offy, double offz,
-                               int gx, int gy, int gz, Vec* cnt) {
-            for (size_t pi = 0; pi < np; ++pi) {
-                const int ph = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
-                const double qx = positions[pi].x - offx;
-                const double qy = positions[pi].y - offy;
-                const double qz = positions[pi].z - offz;
-                const int bx = static_cast<int>(std::floor(qx + 0.5));
-                const int by = static_cast<int>(std::floor(qy + 0.5));
-                const int bz = static_cast<int>(std::floor(qz + 0.5));
-                const double fx = qx - bx, fy = qy - by, fz = qz - bz;
-                for (int di = -1; di <= 1; ++di)
-                    for (int dj = -1; dj <= 1; ++dj)
-                        for (int dk = -1; dk <= 1; ++dk) {
-                            const int i = bx + di, j = by + dj, k = bz + dk;
-                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= gz)
-                                continue;
-                            const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
-                                              (fz - dk) * (fz - dk);
-                            const double wgt = std::max(1.0 - d2, 0.0);
-                            if (wgt > 0.0)
-                                cnt[ph][(static_cast<size_t>(i) * gy + j) * gz + k] +=
-                                    wgt * wgt * wgt;
-                        }
-            }
-        };
-        splatCounts(0.0, 0.5, 0.5, NX + 1, NY, NZ, cntU);
-        splatCounts(0.5, 0.0, 0.5, NX, NY + 1, NZ, cntV);
-        const double thresh = (1.0 - esc_phi) * rho0_face;
-        for (size_t pi = 0; pi < np; ++pi) {
-            const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
-            const int other = liquid ? 0 : 1;
-            const double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
-            const double frac =
-                0.5 * (sampleGrid(cntU[other], NX + 1, NY, NZ, 0.0, 0.5, 0.5, px, py, pz) +
-                       sampleGrid(cntV[other], NX, NY + 1, NZ, 0.5, 0.0, 0.5, px, py, pz));
-            escFlag[pi] = frac > thresh ? 1 : 0;
-        }
-    }
+    const long long lnp = static_cast<long long>(np);
 
     std::vector<double> nvx(np), nvy(np), nvz(np);
-    const long long lnp = static_cast<long long>(np);
 #pragma omp parallel for schedule(static)
     for (long long pi = 0; pi < lnp; ++pi) {
         const double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
-        double vx = pi < velocities.size() ? velocities[pi].x : 0.0;
-        double vy = pi < velocities.size() ? velocities[pi].y : 0.0;
-        double vz = pi < velocities.size() ? velocities[pi].z : 0.0;
-        const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
-        const double a = liquid ? alpha_liquid : alpha_air;
+        double vx = pi < static_cast<long long>(velocities.size()) ? velocities[pi].x : 0.0;
+        double vy = pi < static_cast<long long>(velocities.size()) ? velocities[pi].y : 0.0;
+        double vz = pi < static_cast<long long>(velocities.size()) ? velocities[pi].z : 0.0;
+        const bool liquid = (static_cast<size_t>(pi) < particle_phase.size()
+                             ? particle_phase[pi] : 0.0f) >= 0.5f;
+        double a = liquid ? alpha_liquid : alpha_air;
+        if (adOn) {
+            const double sc = scaleOf(pi);
+            a = 1.0 - (1.0 - a) / (sc * sc);
+        }
         if (!escFlag[pi]) {
             vx = a * (vx + sU(du, px, py, pz)) + (1.0 - a) * sU(u, px, py, pz);
             vy = a * (vy + sV(dv, px, py, pz)) + (1.0 - a) * sV(v, px, py, pz);
@@ -487,7 +572,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         nvx[pi] = vx; nvy[pi] = vy; nvz[pi] = vz;
     }
 
-    std::vector<double> tauNew(np, 0.0), wtNew(np, 1.0);
+    std::vector<double> tauNew(np, 0.0), wtNewV(np, 1.0);
     if (stOn) {
         std::mt19937 rng(static_cast<unsigned>(st_seed) * 2654435761u ^
                          static_cast<unsigned>(step_index) * 2246822519u);
@@ -499,33 +584,26 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             const double xi = c * c * (3.0 - 2.0 * c);
             const double tp = xi * uni(rng);
             tauNew[pi] = tp;
-            wtNew[pi] = wtKernel(tp) / wtNorm(xi);
+            wtNewV[pi] = wtKernel(tp) / wtNorm(xi);
         }
     }
 
-    auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
-    auto outVel = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
-    auto outSync = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
-    auto outM = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMx = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMy = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMz = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outTau = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outWt = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outWtPh = Amino::newMutablePtr<Amino::Array<float>>(np);
-
+    // working vectors sized np, then merge/split edits them.
+    std::vector<double> Px(np), Py(np), Pz(np), Vx(np), Vy(np), Vz(np);
+    std::vector<double> Tau(np), Wt(np), Scl(np), Ph01(np);
+    std::vector<char> Esc(np);
 #pragma omp parallel for schedule(dynamic, 1024)
     for (long long pi = 0; pi < lnp; ++pi) {
         double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
         double vx = nvx[pi], vy = nvy[pi], vz = nvz[pi];
-        const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
-        const double tauOld = pi < tau_in.size() ? static_cast<double>(tau_in[pi]) : 0.0;
+        const bool liquid = (static_cast<size_t>(pi) < particle_phase.size()
+                             ? particle_phase[pi] : 0.0f) >= 0.5f;
+        const double tauOld = static_cast<size_t>(pi) < tau_in.size()
+            ? static_cast<double>(tau_in[pi]) : 0.0;
         const double dtAct = stOn
             ? std::clamp(dt * (1.0 + tauNew[pi] - tauOld), 0.0, 2.0 * dt) : dt;
-
         if (escFlag[pi]) {
-            px += dtAct * vx;
-            py += dtAct * vy;
+            px += dtAct * vx; py += dtAct * vy;
             if (!flat) pz += dtAct * vz;
         } else if (stOn) {
             double rem = dtAct;
@@ -554,38 +632,196 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             py += dt * sV(v, cx, cy, cz);
             if (!flat) pz += dt * sW(w, cx, cy, cz);
         }
-
         if (px < lo || px > hx) { px = std::clamp(px, lo, hx); vx = 0.0; }
         if (py < lo || py > hy) { py = std::clamp(py, lo, hy); vy = 0.0; }
         if (!flat && (pz < lo || pz > hz)) { pz = std::clamp(pz, lo, hz); vz = 0.0; }
-
-        (*outPos)[pi] = {static_cast<float>(px), static_cast<float>(py),
-                         static_cast<float>(pz)};
-        (*outVel)[pi] = {static_cast<float>(vx), static_cast<float>(vy),
-                         static_cast<float>(vz)};
-        const double sdt = tauNew[pi] * dt;
-        (*outSync)[pi] = {static_cast<float>(px - sdt * vx),
-                          static_cast<float>(py - sdt * vy),
-                          static_cast<float>(flat ? pz : pz - sdt * vz)};
-        const float m = liquid ? rho_liquid : rho_air;
-        const double wp = wtNew[pi];
-        (*outM)[pi] = static_cast<float>(wp * m);
-        (*outMx)[pi] = static_cast<float>(wp * m * vx);
-        (*outMy)[pi] = static_cast<float>(wp * m * vy);
-        (*outMz)[pi] = static_cast<float>(wp * m * vz);
-        (*outTau)[pi] = static_cast<float>(tauNew[pi]);
-        (*outWt)[pi] = static_cast<float>(wp);
-        (*outWtPh)[pi] = static_cast<float>(wp * (liquid ? 1.0 : 0.0));
+        Px[pi] = px; Py[pi] = py; Pz[pi] = pz;
+        Vx[pi] = vx; Vy[pi] = vy; Vz[pi] = vz;
+        Tau[pi] = tauNew[pi]; Wt[pi] = wtNewV[pi];
+        Scl[pi] = scaleOf(pi); Ph01[pi] = liquid ? 1.0 : 0.0;
+        Esc[pi] = escFlag[pi];
     }
-    double maxSpeed = 0.0;
-    for (size_t pi = 0; pi < np; ++pi)
-        maxSpeed = std::max({maxSpeed,
-                             static_cast<double>(std::fabs((*outVel)[pi].x)),
-                             static_cast<double>(std::fabs((*outVel)[pi].y)),
-                             static_cast<double>(std::fabs((*outVel)[pi].z))});
 
-    auto outEsc = Amino::newMutablePtr<Amino::Array<float>>(np);
-    for (size_t pi = 0; pi < np; ++pi) (*outEsc)[pi] = escFlag[pi] ? 1.0f : 0.0f;
+    if (adOn && np > 0) {
+        // fresh liquid-count field at the new positions, as the reference does.
+        std::vector<char> isLiq(Px.size());
+        for (size_t i = 0; i < Px.size(); ++i) isLiq[i] = Ph01[i] >= 0.5 ? 1 : 0;
+        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
+        Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
+        countSplat(Px, Py, Pz, isLiq, Scl, cntU, cntV);
+        std::vector<double> lf(Px.size());
+        for (size_t i = 0; i < Px.size(); ++i)
+            lf[i] = sampleCnt(cntU[1], cntV[1], Px[i], Py[i], Pz[i]) /
+                    std::max(static_cast<double>(rho0_face), 1e-9);
+
+        const int groupN = flat ? 4 : 8;
+        const double wallM = 2.0;
+        // ---- split coarse near interface or walls
+        std::vector<size_t> splitIdx;
+        for (size_t i = 0; i < Px.size(); ++i) {
+            if (Scl[i] < 1.5) continue;
+            const bool nearWall = Px[i] < wallM || Px[i] > NX - wallM ||
+                                  Py[i] < wallM || Py[i] > NY - wallM ||
+                                  (!flat && (Pz[i] < wallM || Pz[i] > NZ - wallM));
+            if (lf[i] > 0.05 || nearWall) splitIdx.push_back(i);
+        }
+        if (!splitIdx.empty()) {
+            std::vector<char> drop(Px.size(), 0);
+            for (size_t i : splitIdx) drop[i] = 1;
+            auto keepFilter = [&](auto& vec) {
+                size_t wr = 0;
+                for (size_t i = 0; i < drop.size(); ++i)
+                    if (!drop[i]) vec[wr++] = vec[i];
+                vec.resize(wr);
+            };
+            std::vector<double> sp_[10];
+            // stash split parents before filtering
+            std::vector<double> pxs, pys, pzs, vxs, vys, vzs, tas, phs;
+            for (size_t i : splitIdx) {
+                pxs.push_back(Px[i]); pys.push_back(Py[i]); pzs.push_back(Pz[i]);
+                vxs.push_back(Vx[i]); vys.push_back(Vy[i]); vzs.push_back(Vz[i]);
+                tas.push_back(Tau[i]); phs.push_back(Ph01[i]);
+            }
+            keepFilter(Px); keepFilter(Py); keepFilter(Pz);
+            keepFilter(Vx); keepFilter(Vy); keepFilter(Vz);
+            keepFilter(Tau); keepFilter(Wt); keepFilter(Scl); keepFilter(Ph01);
+            {
+                size_t wr = 0;
+                for (size_t i = 0; i < drop.size(); ++i)
+                    if (!drop[i]) Esc[wr++] = Esc[i];
+                Esc.resize(wr);
+            }
+            for (size_t m2 = 0; m2 < pxs.size(); ++m2) {
+                for (int ci = 0; ci < groupN; ++ci) {
+                    const double ox = (ci & 1) ? 0.5 : -0.5;
+                    const double oy = (ci & 2) ? 0.5 : -0.5;
+                    const double oz = flat ? 0.0 : ((ci & 4) ? 0.5 : -0.5);
+                    Px.push_back(std::clamp(pxs[m2] + ox, lo, hx));
+                    Py.push_back(std::clamp(pys[m2] + oy, lo, hy));
+                    Pz.push_back(flat ? pzs[m2] : std::clamp(pzs[m2] + oz, lo, hz));
+                    Vx.push_back(vxs[m2]); Vy.push_back(vys[m2]); Vz.push_back(vzs[m2]);
+                    Tau.push_back(tas[m2]);
+                    Wt.push_back(wtKernel(tas[m2]) / wtNorm(1.0));
+                    Scl.push_back(1.0); Ph01.push_back(phs[m2]); Esc.push_back(0);
+                }
+            }
+        }
+        // ---- merge deep-air fine, groupN-to-1 per 2-cell block
+        std::vector<size_t> cand;
+        for (size_t i = 0; i < Px.size(); ++i)
+            if (Scl[i] < 1.5 && Ph01[i] < 0.5 &&
+                (i < lf.size() ? lf[i] : 1.0) < 0.02)
+                cand.push_back(i);
+        if (static_cast<int>(cand.size()) >= groupN) {
+            std::stable_sort(cand.begin(), cand.end(), [&](size_t a2, size_t b2) {
+                const long long ka =
+                    (static_cast<long long>(Px[a2] / 2) * 100000 +
+                     static_cast<long long>(Py[a2] / 2)) * 100000 +
+                    (flat ? 0 : static_cast<long long>(Pz[a2] / 2));
+                const long long kb =
+                    (static_cast<long long>(Px[b2] / 2) * 100000 +
+                     static_cast<long long>(Py[b2] / 2)) * 100000 +
+                    (flat ? 0 : static_cast<long long>(Pz[b2] / 2));
+                return ka < kb;
+            });
+            auto key = [&](size_t i) {
+                return (static_cast<long long>(Px[i] / 2) * 100000 +
+                        static_cast<long long>(Py[i] / 2)) * 100000 +
+                       (flat ? 0 : static_cast<long long>(Pz[i] / 2));
+            };
+            std::vector<char> drop(Px.size(), 0);
+            std::vector<double> mpx, mpy, mpz, mvx, mvy, mvz, mta;
+            size_t i = 0;
+            while (i < cand.size()) {
+                size_t j = i;
+                while (j < cand.size() && key(cand[j]) == key(cand[i])) ++j;
+                const size_t take = ((j - i) / groupN) * groupN;
+                for (size_t g2 = 0; g2 < take; g2 += groupN) {
+                    double ax = 0, ay = 0, az = 0, bx = 0, by = 0, bz = 0, tt = 0;
+                    for (int m2 = 0; m2 < groupN; ++m2) {
+                        const size_t id = cand[i + g2 + m2];
+                        drop[id] = 1;
+                        ax += Px[id]; ay += Py[id]; az += Pz[id];
+                        bx += Vx[id]; by += Vy[id]; bz += Vz[id];
+                        tt += Tau[id];
+                    }
+                    mpx.push_back(ax / groupN); mpy.push_back(ay / groupN);
+                    mpz.push_back(az / groupN);
+                    mvx.push_back(bx / groupN); mvy.push_back(by / groupN);
+                    mvz.push_back(bz / groupN);
+                    mta.push_back(tt / groupN);
+                }
+                i = j;
+            }
+            if (!mpx.empty()) {
+                auto keepFilter = [&](auto& vec) {
+                    size_t wr = 0;
+                    for (size_t k2 = 0; k2 < drop.size(); ++k2)
+                        if (!drop[k2]) vec[wr++] = vec[k2];
+                    vec.resize(wr);
+                };
+                keepFilter(Px); keepFilter(Py); keepFilter(Pz);
+                keepFilter(Vx); keepFilter(Vy); keepFilter(Vz);
+                keepFilter(Tau); keepFilter(Wt); keepFilter(Scl); keepFilter(Ph01);
+                {
+                    size_t wr = 0;
+                    for (size_t k2 = 0; k2 < drop.size(); ++k2)
+                        if (!drop[k2]) Esc[wr++] = Esc[k2];
+                    Esc.resize(wr);
+                }
+                for (size_t m2 = 0; m2 < mpx.size(); ++m2) {
+                    Px.push_back(mpx[m2]); Py.push_back(mpy[m2]); Pz.push_back(mpz[m2]);
+                    Vx.push_back(mvx[m2]); Vy.push_back(mvy[m2]); Vz.push_back(mvz[m2]);
+                    Tau.push_back(mta[m2]);
+                    Wt.push_back(wtKernel(mta[m2]) / wtNorm(1.0));
+                    Scl.push_back(2.0); Ph01.push_back(0.0); Esc.push_back(0);
+                }
+            }
+        }
+    }
+
+    // ---- pack outputs at the final particle count.
+    const size_t nf = Px.size();
+    auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(nf);
+    auto outVel = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(nf);
+    auto outSync = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(nf);
+    auto outM = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outMx = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outMy = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outMz = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outTau = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outScl = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outPh = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outWt = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outWtPh = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outEsc = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    double maxSpeed = 0.0;
+    for (size_t i = 0; i < nf; ++i) {
+        (*outPos)[i] = {static_cast<float>(Px[i]), static_cast<float>(Py[i]),
+                        static_cast<float>(Pz[i])};
+        (*outVel)[i] = {static_cast<float>(Vx[i]), static_cast<float>(Vy[i]),
+                        static_cast<float>(Vz[i])};
+        const double sdt = Tau[i] * dt;
+        (*outSync)[i] = {static_cast<float>(Px[i] - sdt * Vx[i]),
+                         static_cast<float>(Py[i] - sdt * Vy[i]),
+                         static_cast<float>(flat ? Pz[i] : Pz[i] - sdt * Vz[i])};
+        const double rhoP = Ph01[i] >= 0.5 ? rl : rg;
+        const double mEff = rhoP * std::pow(Scl[i], dExp) *
+                            (Scl[i] > 1.5 ? coarse_gain : 1.0);
+        const double wp = Wt[i];
+        (*outM)[i] = static_cast<float>(wp * mEff);
+        (*outMx)[i] = static_cast<float>(wp * mEff * Vx[i]);
+        (*outMy)[i] = static_cast<float>(wp * mEff * Vy[i]);
+        (*outMz)[i] = static_cast<float>(wp * mEff * Vz[i]);
+        (*outTau)[i] = static_cast<float>(Tau[i]);
+        (*outScl)[i] = static_cast<float>(Scl[i]);
+        (*outPh)[i] = static_cast<float>(Ph01[i]);
+        (*outWt)[i] = static_cast<float>(wp);
+        (*outWtPh)[i] = static_cast<float>(wp * Ph01[i]);
+        (*outEsc)[i] = Esc[i] ? 1.0f : 0.0f;
+        maxSpeed = std::max({maxSpeed, std::fabs(Vx[i]), std::fabs(Vy[i]),
+                             std::fabs(Vz[i])});
+    }
 
     auto outU = Amino::newMutablePtr<Amino::Array<float>>(nu);
     auto outV = Amino::newMutablePtr<Amino::Array<float>>(nv);
@@ -597,10 +833,6 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     for (size_t c = 0; c < ncell; ++c) (*outP)[c] = static_cast<float>(p[c]);
 
     out_positions = outPos.toImmutable();
-    tau_out = outTau.toImmutable();
-    out_wt = outWt.toImmutable();
-    out_wtph = outWtPh.toImmutable();
-    out_pos_synced = outSync.toImmutable();
     out_velocities = outVel.toImmutable();
     out_mass = outM.toImmutable();
     out_mom_x = outMx.toImmutable();
@@ -611,6 +843,12 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     out_w = outW.toImmutable();
     pressure = outP.toImmutable();
     out_escaped = outEsc.toImmutable();
+    tau_out = outTau.toImmutable();
+    scale_out = outScl.toImmutable();
+    out_phase_state = outPh.toImmutable();
+    out_wt = outWt.toImmutable();
+    out_wtph = outWtPh.toImmutable();
+    out_pos_synced = outSync.toImmutable();
     iterations_used = it;
     final_residual = static_cast<float>(std::sqrt(rr2) / r0);
     max_divergence_after = static_cast<float>(maxDiv);
