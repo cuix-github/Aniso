@@ -30,16 +30,19 @@ OUT = os.path.join(HERE, "out", "step3_out")
 NX, NY, DT = 160, 80, 0.02
 
 
-def run_node(indir, outdir, **ports):
+def run_node(indir, outdir, extra_arrays=(), extra_outputs=(), **ports):
     os.makedirs(outdir, exist_ok=True)
     args = [os.path.join(HERE, "run_solve_step3.bat")]
     for k, v in ports.items():
         args += ["--set-port", k, str(v)]
-    for n in ("u_mass", "u_mom", "u_phase", "v_mass", "v_mom", "v_phase",
-              "w_mass", "w_mom", "w_phase", "particle_phase", "positions", "velocities"):
+    names = ("u_mass", "u_mom", "u_phase", "v_mass", "v_mom", "v_phase",
+             "w_mass", "w_mom", "w_phase", "particle_phase", "positions",
+             "velocities") + tuple(extra_arrays)
+    for n in names:
         args += ["--set-port", "path_" + n, os.path.join(indir, n + ".npy").replace("\\", "/")]
-    for n in ("out_u", "out_v", "out_w", "pressure", "out_positions", "out_velocities",
-              "out_escaped"):
+    outs = ("out_u", "out_v", "out_w", "pressure", "out_positions", "out_velocities",
+            "out_escaped") + tuple(extra_outputs)
+    for n in outs:
         args += ["--set-port", "path_" + n, os.path.join(outdir, n + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)
     stats = {}

@@ -408,6 +408,105 @@ def build3d():
         {"source": "t_pos.output", "target": "r_probes_w.type"},
         {"source": "r_probes_w.data", "target": "loop.probes_w"},
     ]
+    # ---- ST wiring: tau/wt/wtph as loop state, the temporal-weight channel as a
+    # fourth splat+sample per staggered grid, scalars, and synced-position dumps.
+    body["compoundNodes"] += [
+        {"nodeName": "set_wt", "nodeType": "Geometry::Properties::set_geo_property"},
+        {"nodeName": "idx_i", "nodeType": "Core::Type_Conversion::to_int"},
+    ]
+    for g2 in ("u", "v", "w"):
+        body["compoundNodes"] += [
+            {"nodeName": "sp4_" + g2, "nodeType": "Geometry::Volume::splat_points_into_volume"},
+            {"nodeName": "sw_" + g2, "nodeType": "Geometry::Query::sample_volume"},
+        ]
+    conns = body["connections"]
+    # property chain: insert voxel_wt between set_mz and set_ph
+    for k in conns:
+        if k["source"] == "set_mz.out_geometry" and k["target"] == "set_ph.geometry":
+            k["source"] = "set_wt.out_geometry"
+    conns += [
+        {"source": "set_mz.out_geometry", "target": "set_wt.geometry"},
+        {"source": ".wt_in", "target": "set_wt.data"},
+        {"source": "zero.output", "target": "set_wt.default"},
+    ]
+    # voxel_ph now carries the premultiplied phase state
+    for k in conns:
+        if k["source"] == ".particle_phase" and k["target"] == "set_ph.data":
+            k["source"] = ".wtph_in"
+    for g2 in ("u", "v", "w"):
+        conns += [
+            {"source": "sp3_" + g2 + ".out_volume", "target": "sp4_" + g2 + ".volume"},
+            {"source": "spos_" + g2 + ".out_geometry", "target": "sp4_" + g2 + ".points"},
+            {"source": ".radius", "target": "sp4_" + g2 + ".radius"},
+            {"source": ".add_to_denominator", "target": "sp4_" + g2 + ".add_to_denominator"},
+            {"source": "sp4_" + g2 + ".out_volume", "target": "sw_" + g2 + ".volume"},
+            {"source": ".probes_" + g2, "target": "sw_" + g2 + ".positions"},
+            {"source": ".sample_default", "target": "sw_" + g2 + ".default"},
+            {"source": "sw_" + g2 + ".sampled_data", "target": "step." + g2 + "_wt"},
+        ]
+        body["values"] += [
+            {"valueName": "sp4_" + g2 + ".create_properties", "valueType": "bool", "value": "true"},
+            {"valueName": "sp4_" + g2 + ".properties", "valueType": "string", "value": "voxel_wt"},
+            {"valueName": "sp4_" + g2 + ".kernel",
+             "valueType": "Geometry::Volume::SplatKernelType", "value": "kLinearKernel"},
+            {"valueName": "sp4_" + g2 + ".add_to_weights", "valueType": "float", "value": "0f"},
+            {"valueName": "sp4_" + g2 + ".smoothing", "valueType": "float", "value": "0f"},
+            {"valueName": "sp4_" + g2 + ".coarsest_depth", "valueType": "int", "value": "0"},
+            {"valueName": "sw_" + g2 + ".property", "valueType": "string", "value": "voxel_wt"},
+            {"valueName": "sw_" + g2 + ".sampler",
+             "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+        ]
+    # sample_volume on sp3 was the phase channel chain end; sp4 extends it, so the
+    # existing sm/so/sq nodes still read sp3's volume which lacks voxel_wt - repoint
+    # their volume source to sp4 so every sampler sees the full volume.
+    for g2 in ("u", "v", "w"):
+        for k in conns:
+            if k["source"] == "sp3_" + g2 + ".out_volume" and k["target"].startswith(
+                    ("sm_" + g2, "so_" + g2, "sq_" + g2)):
+                k["source"] = "sp4_" + g2 + ".out_volume"
+    body["values"] += [
+        {"valueName": "set_wt.property", "valueType": "string", "value": "voxel_wt"},
+    ]
+    # scalars and state
+    for n, t in (("st", "int"), ("st_seed", "int")):
+        body["ports"].append(P(n, "input", t))
+        conns.append({"source": "." + n, "target": "step." + n})
+        top["ports"].append(P(n, "input", t, "0" if n == "st" else "7"))
+        top["connections"].append({"source": "." + n, "target": "loop." + n})
+    conns += [
+        {"source": ".current_index", "target": "idx_i.from"},
+        {"source": "idx_i.int", "target": "step.step_index"},
+    ]
+    body["ports"] += [
+        P("tau_in", "input", "array<float>"), P("tau_out2", "output", "array<float>"),
+        P("wt_in", "input", "array<float>"), P("wt_out2", "output", "array<float>"),
+        P("wtph_in", "input", "array<float>"), P("wtph_out2", "output", "array<float>"),
+    ]
+    conns += [
+        {"source": ".tau_in", "target": "step.tau_in"},
+        {"source": "step.tau_out", "target": ".tau_out2"},
+        {"source": "step.out_wt", "target": ".wt_out2"},
+        {"source": "step.out_wtph", "target": ".wtph_out2"},
+    ]
+    body["iterateCompound"]["ports"] += [
+        {"portKind": "state", "inputPortName": "tau_in", "outputPortName": "tau_out2"},
+        {"portKind": "state", "inputPortName": "wt_in", "outputPortName": "wt_out2"},
+        {"portKind": "state", "inputPortName": "wtph_in", "outputPortName": "wtph_out2"},
+    ]
+    # dumps use time-resynchronized positions
+    for k in conns:
+        if k["source"] == "step.out_positions" and k["target"] == "w_pos.data":
+            k["source"] = "step.out_pos_synced"
+    # outer reads for the three new initial states
+    for n in ("tau", "wt", "wtph"):
+        top["ports"].append(P("path_" + n, "input", "string", ""))
+        top["compoundNodes"].append({"nodeName": "r_" + n, "nodeType": "File::NumPy::read_NumPy"})
+        top["connections"] += [
+            {"source": ".path_" + n, "target": "r_" + n + ".file_path"},
+            {"source": "t_flt.output", "target": "r_" + n + ".type"},
+            {"source": "r_" + n + ".data", "target": "loop." + n + "_in"},
+        ]
+
     g["compounds"][0]["name"] = "User::PFFlip::sim_3d"
     return g
 

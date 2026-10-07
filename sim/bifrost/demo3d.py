@@ -41,15 +41,18 @@ def lattice(ni, nj, nk):
     return np.stack([i.ravel(), j.ravel(), k.ravel()], 1).astype(np.float32)
 
 
-def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0):
+def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
+                 extra_ports=None, seed_fn=None):
     d = os.path.join(HERE, "out", "loop3_" + tag)
     os.makedirs(d, exist_ok=True)
-    pos, typ = seed3d(nx, ny, nz, mask)
+    pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
     mass = np.where(typ == 1, rho_l, rho_g).astype(np.float32)
     zeros = np.zeros(len(pos), np.float32)
     arrs = {"positions": pos.astype(np.float32), "velocities": np.zeros_like(pos, dtype=np.float32),
             "particle_phase": typ.astype(np.float32), "mass": mass,
             "momx": zeros, "momy": zeros, "momz": zeros,
+            "tau": zeros, "wt": np.ones(len(pos), np.float32),
+            "wtph": typ.astype(np.float32),
             "probes_u": lattice(nx + 1, ny, nz), "probes_v": lattice(nx, ny + 1, nz),
             "probes_w": lattice(nx, ny, nz + 1)}
     for k, v in arrs.items():
@@ -62,6 +65,8 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0):
             "--set-port", "pos_pattern", (d + "/frame.####").replace("\\", "/"),
             "--set-port", "diag_pattern", (d + "/diag.####").replace("\\", "/"),
             "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/"),
+            *[x for k2, v2 in (extra_ports or {}).items()
+              for x in ("--set-port", k2, str(v2))],
             "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/")]
     for k in arrs:
         args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
