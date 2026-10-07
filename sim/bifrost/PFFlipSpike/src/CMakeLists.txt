@@ -13,7 +13,11 @@ add_library( PFFlipSpikeOps SHARED)
 target_compile_definitions( PFFlipSpikeOps PRIVATE
     PF_FLIP_SPIKE_BUILD_NODEDEF_DLL )
 target_sources( PFFlipSpikeOps PRIVATE PFFlipSpike.cpp PFFlipSolve.cpp PFFlipSolve3.cpp)
+find_package(OpenMP)
 target_link_libraries( PFFlipSpikeOps PUBLIC Amino::Cpp Amino::Core )
+if(OpenMP_CXX_FOUND)
+    target_link_libraries( PFFlipSpikeOps PUBLIC OpenMP::OpenMP_CXX )
+endif()
 bifrost_set_install_rpath(PFFlipSpikeOps)
 install( TARGETS PFFlipSpikeOps DESTINATION lib )
 
