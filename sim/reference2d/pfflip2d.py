@@ -307,8 +307,9 @@ class Sim:
             # self-excluding: a particle's own splat cannot mask it (phi-based
             # detection fails for droplets because a lone liquid particle's own mass,
             # through Eq. 7's square root, still reads as phi ~ 0.45).
-            ones_air = (self.typ == 0).astype(float)
-            ones_liq = 1.0 - ones_air
+            w_rep = self.scale ** 2 if self.adapt else np.ones(len(self.typ))
+            ones_air = (self.typ == 0).astype(float) * w_rep
+            ones_liq = ((self.typ == 1).astype(float)) * w_rep
             fu, fv = self._face_frames()
             au, lu = self._splat(self.u.shape, fu, [ones_air, ones_liq])
             av, lv = self._splat(self.v.shape, fv, [ones_air, ones_liq])
