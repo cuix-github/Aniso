@@ -1,6 +1,7 @@
 #include "PFFlipSolve.h"
 
 #include <algorithm>
+#include <random>
 #include <cmath>
 #include <vector>
 
@@ -187,6 +188,24 @@ double sampleGrid(const Vec& g, int gx, int gy, int gz,
     return out;
 }
 
+// ---- ST-FLIP helpers: temporal kernel, its Gauss-Legendre normalization, smoothstep.
+double wtKernel(double tau) {
+    const double d = 1.0 - (tau - 0.5) * (tau - 0.5);
+    return d > 0.0 ? (35.0 / 16.0) * d * d * d : 0.0;
+}
+// numpy.polynomial.legendre.leggauss(8), both scaled by 0.5 (as the 2D reference).
+const double GL_N[8] = {-0.4801449282487681, -0.3983332387068134, -0.2627662049581645,
+                        -0.0917173212478249, 0.0917173212478249, 0.2627662049581645,
+                        0.3983332387068134, 0.4801449282487681};
+const double GL_W[8] = {0.0506142681451881, 0.1111905172266872, 0.1568533229389436,
+                        0.1813418916891810, 0.1813418916891810, 0.1568533229389436,
+                        0.1111905172266872, 0.0506142681451881};
+double wtNorm(double xi) {
+    double z = 0.0;
+    for (int i = 0; i < 8; ++i) z += GL_W[i] * wtKernel(xi * GL_N[i]);
+    return std::max(z, 1e-9);
+}
+
 } // namespace
 
 namespace PFFlip {
@@ -196,6 +215,10 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              float rho_air, float alpha_liquid, float alpha_air, int max_iterations,
              float tolerance, int preconditioner, int escape, float esc_phi,
              float drag_droplet, float drag_bubble, float buoyancy, float rho0_face,
+             int st, int st_seed, int step_index,
+             const Amino::Array<float>& tau_in,
+             const Amino::Array<float>& u_wt, const Amino::Array<float>& v_wt,
+             const Amino::Array<float>& w_wt,
              const Amino::Array<float>& u_mass, const Amino::Array<float>& u_mom,
              const Amino::Array<float>& u_phase, const Amino::Array<float>& v_mass,
              const Amino::Array<float>& v_mom, const Amino::Array<float>& v_phase,
@@ -215,6 +238,10 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              Amino::Ptr<Amino::Array<float>>& out_w,
              Amino::Ptr<Amino::Array<float>>& pressure,
              Amino::Ptr<Amino::Array<float>>& out_escaped,
+             Amino::Ptr<Amino::Array<float>>& tau_out,
+             Amino::Ptr<Amino::Array<float>>& out_wt,
+             Amino::Ptr<Amino::Array<float>>& out_wtph,
+             Amino::Ptr<Amino::Array<Bifrost::Math::float3>>& out_pos_synced,
              int& iterations_used, float& final_residual, float& max_divergence_after,
              float& max_speed) {
     const int NX = std::max(2, nx), NY = std::max(2, ny), NZ = std::max(1, nz);
@@ -258,13 +285,20 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     // ---- face coefficients beta = 1/rho(phi), walls zero.
     L.bu.assign(nu, 0.0); L.bv.assign(nv, 0.0); L.bw.assign(nw, 0.0);
     const double rl = rho_liquid, rg = rho_air;
-    auto beta = [&](Vec& bb, const Amino::Array<float>& ph) {
+    // With ST graphs the phase channel arrives premultiplied by the temporal weight
+    // and must be divided by the splatted weight channel; an empty wt channel means
+    // the plain scheme (wt = 1), keeping every existing graph and driver valid.
+    auto beta = [&](Vec& bb, const Amino::Array<float>& ph, const Amino::Array<float>& wt) {
         for (size_t c = 0; c < bb.size(); ++c) {
-            const double p = std::clamp(c < ph.size() ? static_cast<double>(ph[c]) : 0.0, 0.0, 1.0);
-            bb[c] = 1.0 / (rg + (rl - rg) * p);
+            double p = c < ph.size() ? static_cast<double>(ph[c]) : 0.0;
+            if (wt.size() > 0) {
+                const double wc = c < wt.size() ? static_cast<double>(wt[c]) : 0.0;
+                p = wc > 1e-12 ? p / wc : 0.0;
+            }
+            bb[c] = 1.0 / (rg + (rl - rg) * std::clamp(p, 0.0, 1.0));
         }
     };
-    beta(L.bu, u_phase); beta(L.bv, v_phase); beta(L.bw, w_phase);
+    beta(L.bu, u_phase, u_wt); beta(L.bv, v_phase, v_wt); beta(L.bw, w_phase, w_wt);
     walls(L.bu, L.bv, L.bw);
     buildDiag(L);
     L.x.assign(L.nc(), 0.0); L.b.assign(L.nc(), 0.0); L.r.assign(L.nc(), 0.0);
@@ -351,7 +385,10 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                     (v[F.iv(i, j + 1, k)] - v[F.iv(i, j, k)]) +
                     (w[F.iw(i, j, k + 1)] - w[F.iw(i, j, k)])));
 
-    // ---- g2p (per-phase FLIP blend) + RK2 advection with wall clamps.
+    // ---- g2p (per-phase FLIP blend), escape forces, then advection. With ST on,
+    // each particle advances by dt*(1 + tau_new - tau_old) clamped to [0, 2dt],
+    // sub-stepped at local CFL 1; tau draws are serial for determinism and exported,
+    // so lockstep comparisons replay the exact same jitter in the reference.
     Vec du(nu), dv(nv), dw(nw);
     for (size_t c = 0; c < nu; ++c) du[c] = u[c] - uStar[c];
     for (size_t c = 0; c < nv; ++c) dv[c] = v[c] - vStar[c];
@@ -364,14 +401,15 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     auto sW = [&](const Vec& g, double x, double y, double zc) {
         return sampleGrid(g, NX, NY, NZ + 1, 0.5, 0.5, 0.0, x, y, zc); };
 
-    // ---- escaped-particle detection, mirroring the 2D reference exactly: splat
-    // per-phase counts onto the face grids with the Eq. 6 kernel ((1-d^2)^3 on the
-    // 3x3(x3) stencil; with all particles at z=0.5 the z terms vanish, so nz=1
-    // reduces to the python detection bit for bit), sample the OTHER phase's count
-    // at each particle, and compare against the calibrated full-seeding density.
+    const bool flat = NZ == 1;
+    const bool stOn = st != 0;
+    const double lo = 0.51, hx = NX - 0.51, hy = NY - 0.51, hz = NZ - 0.51;
+
+    // ---- escaped-particle detection (unchanged from the escape PR): per-phase
+    // count splats with the Eq. 6 kernel, other-phase density vs calibrated rho0.
     std::vector<char> escFlag(np, 0);
     if (escape != 0 && np > 0) {
-        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};   // [0]=air, [1]=liquid
+        Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
         Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
         auto splatCounts = [&](double offx, double offy, double offz,
                                int gx, int gy, int gz, Vec* cnt) {
@@ -413,31 +451,19 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         }
     }
 
-    auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
-    auto outVel = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
-    auto outM = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMx = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMy = Amino::newMutablePtr<Amino::Array<float>>(np);
-    auto outMz = Amino::newMutablePtr<Amino::Array<float>>(np);
-
-    const bool flat = NZ == 1;
-    const double lo = 0.51, hx = NX - 0.51, hy = NY - 0.51, hz = NZ - 0.51;
-    double maxSpeed = 0.0;
+    std::vector<double> nvx(np), nvy(np), nvz(np);
     for (size_t pi = 0; pi < np; ++pi) {
-        double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
+        const double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
         double vx = pi < velocities.size() ? velocities[pi].x : 0.0;
         double vy = pi < velocities.size() ? velocities[pi].y : 0.0;
         double vz = pi < velocities.size() ? velocities[pi].z : 0.0;
         const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
         const double a = liquid ? alpha_liquid : alpha_air;
-        const bool esc = escFlag[pi] != 0;
-
-        if (!esc) {
+        if (!escFlag[pi]) {
             vx = a * (vx + sU(du, px, py, pz)) + (1.0 - a) * sU(u, px, py, pz);
             vy = a * (vy + sV(dv, px, py, pz)) + (1.0 - a) * sV(v, px, py, pz);
             vz = flat ? 0.0 : a * (vz + sW(dw, px, py, pz)) + (1.0 - a) * sW(w, px, py, pz);
         } else {
-            // escaped: skip the blend; ballistic forces + drag toward the grid flow.
             const double gx = sU(u, px, py, pz), gy = sV(v, px, py, pz);
             const double gz = flat ? 0.0 : sW(w, px, py, pz);
             const double drag = liquid ? drag_droplet : drag_bubble;
@@ -446,8 +472,67 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             vy += drag * dt * (gy - vy);
             vz = flat ? 0.0 : vz + drag * dt * (gz - vz);
         }
+        nvx[pi] = vx; nvy[pi] = vy; nvz[pi] = vz;
+    }
 
-        if (!esc) {
+    std::vector<double> tauNew(np, 0.0), wtNew(np, 1.0);
+    if (stOn) {
+        std::mt19937 rng(static_cast<unsigned>(st_seed) * 2654435761u ^
+                         static_cast<unsigned>(step_index) * 2246822519u);
+        std::uniform_real_distribution<double> uni(-0.5, 0.5);
+        for (size_t pi = 0; pi < np; ++pi) {
+            const double sp = std::max({std::fabs(nvx[pi]), std::fabs(nvy[pi]),
+                                        std::fabs(nvz[pi])});
+            const double c = std::clamp(sp * dt, 0.0, 1.0);
+            const double xi = c * c * (3.0 - 2.0 * c);
+            const double tp = xi * uni(rng);
+            tauNew[pi] = tp;
+            wtNew[pi] = wtKernel(tp) / wtNorm(xi);
+        }
+    }
+
+    auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
+    auto outVel = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
+    auto outSync = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(np);
+    auto outM = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outMx = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outMy = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outMz = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outTau = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outWt = Amino::newMutablePtr<Amino::Array<float>>(np);
+    auto outWtPh = Amino::newMutablePtr<Amino::Array<float>>(np);
+
+    double maxSpeed = 0.0;
+    for (size_t pi = 0; pi < np; ++pi) {
+        double px = positions[pi].x, py = positions[pi].y, pz = positions[pi].z;
+        double vx = nvx[pi], vy = nvy[pi], vz = nvz[pi];
+        const bool liquid = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
+        const double tauOld = pi < tau_in.size() ? static_cast<double>(tau_in[pi]) : 0.0;
+        const double dtAct = stOn
+            ? std::clamp(dt * (1.0 + tauNew[pi] - tauOld), 0.0, 2.0 * dt) : dt;
+
+        if (escFlag[pi]) {
+            px += dtAct * vx;
+            py += dtAct * vy;
+            if (!flat) pz += dtAct * vz;
+        } else if (stOn) {
+            double rem = dtAct;
+            for (int r = 0; rem > 1e-12 && r < 64; ++r) {
+                const double v1x = sU(u, px, py, pz), v1y = sV(v, px, py, pz);
+                const double v1z = flat ? 0.0 : sW(w, px, py, pz);
+                const double sp = std::max({std::fabs(v1x), std::fabs(v1y),
+                                            std::fabs(v1z), 1e-9});
+                const double dts = std::min(rem, 1.0 / sp);
+                const double mx = px + 0.5 * dts * v1x, my = py + 0.5 * dts * v1y;
+                const double mz = flat ? pz : pz + 0.5 * dts * v1z;
+                const double cx = std::max(mx, 0.51), cy = std::max(my, 0.51);
+                const double cz = flat ? pz : std::max(mz, 0.51);
+                px += dts * sU(u, cx, cy, cz);
+                py += dts * sV(v, cx, cy, cz);
+                if (!flat) pz += dts * sW(w, cx, cy, cz);
+                rem -= dts;
+            }
+        } else {
             const double mx = px + 0.5 * dt * sU(u, px, py, pz);
             const double my = py + 0.5 * dt * sV(v, px, py, pz);
             const double mz = flat ? pz : pz + 0.5 * dt * sW(w, px, py, pz);
@@ -456,23 +541,29 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             px += dt * sU(u, cx, cy, cz);
             py += dt * sV(v, cx, cy, cz);
             if (!flat) pz += dt * sW(w, cx, cy, cz);
-        } else {
-            px += dt * vx;
-            py += dt * vy;
-            if (!flat) pz += dt * vz;
         }
 
         if (px < lo || px > hx) { px = std::clamp(px, lo, hx); vx = 0.0; }
         if (py < lo || py > hy) { py = std::clamp(py, lo, hy); vy = 0.0; }
         if (!flat && (pz < lo || pz > hz)) { pz = std::clamp(pz, lo, hz); vz = 0.0; }
 
-        (*outPos)[pi] = {static_cast<float>(px), static_cast<float>(py), static_cast<float>(pz)};
-        (*outVel)[pi] = {static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)};
+        (*outPos)[pi] = {static_cast<float>(px), static_cast<float>(py),
+                         static_cast<float>(pz)};
+        (*outVel)[pi] = {static_cast<float>(vx), static_cast<float>(vy),
+                         static_cast<float>(vz)};
+        const double sdt = tauNew[pi] * dt;
+        (*outSync)[pi] = {static_cast<float>(px - sdt * vx),
+                          static_cast<float>(py - sdt * vy),
+                          static_cast<float>(flat ? pz : pz - sdt * vz)};
         const float m = liquid ? rho_liquid : rho_air;
-        (*outM)[pi] = m;
-        (*outMx)[pi] = m * static_cast<float>(vx);
-        (*outMy)[pi] = m * static_cast<float>(vy);
-        (*outMz)[pi] = m * static_cast<float>(vz);
+        const double wp = wtNew[pi];
+        (*outM)[pi] = static_cast<float>(wp * m);
+        (*outMx)[pi] = static_cast<float>(wp * m * vx);
+        (*outMy)[pi] = static_cast<float>(wp * m * vy);
+        (*outMz)[pi] = static_cast<float>(wp * m * vz);
+        (*outTau)[pi] = static_cast<float>(tauNew[pi]);
+        (*outWt)[pi] = static_cast<float>(wp);
+        (*outWtPh)[pi] = static_cast<float>(wp * (liquid ? 1.0 : 0.0));
         maxSpeed = std::max({maxSpeed, std::fabs(vx), std::fabs(vy), std::fabs(vz)});
     }
 
@@ -489,6 +580,10 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     for (size_t c = 0; c < ncell; ++c) (*outP)[c] = static_cast<float>(p[c]);
 
     out_positions = outPos.toImmutable();
+    tau_out = outTau.toImmutable();
+    out_wt = outWt.toImmutable();
+    out_wtph = outWtPh.toImmutable();
+    out_pos_synced = outSync.toImmutable();
     out_velocities = outVel.toImmutable();
     out_mass = outM.toImmutable();
     out_mom_x = outMx.toImmutable();
