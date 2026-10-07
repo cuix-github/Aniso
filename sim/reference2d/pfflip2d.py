@@ -71,7 +71,8 @@ class Sim:
         self.pos = np.concatenate(ps)
         self.typ = np.concatenate(ts)
         self.vel = np.zeros_like(self.pos)
-        self.tau = self.st_rng.uniform(-0.5, 0.5, len(self.pos))
+        self.tau = np.zeros(len(self.pos))      # particles start synchronized
+        self.xi = np.ones(len(self.pos))        # per-particle jitter strength
 
     def masses(self):
         return np.where(self.typ == 1, self.rho_l, self.rho_g)
@@ -109,10 +110,19 @@ class Sim:
         """ST-FLIP temporal kernel: one-sided poly6 peaking at the slab end (+1/2)."""
         return (35.0 / 16.0) * np.maximum(1.0 - (tau - 0.5) ** 2, 0.0) ** 3
 
+    _GL_NODES = 0.5 * np.polynomial.legendre.leggauss(8)[0]
+    _GL_WEIGHTS = 0.5 * np.polynomial.legendre.leggauss(8)[1]
+
+    def _wt_norm(self, xi):
+        """E[wT(xi*T)], T~U(-1/2,1/2): the weight renormalization for attenuated
+        jitter, so calm (xi<1) and fast (xi=1) regions deposit consistent mass."""
+        taus = xi[:, None] * self._GL_NODES[None, :]
+        return (self._wt(taus) * self._GL_WEIGHTS[None, :]).sum(1)
+
     def p2g(self):
         m = self.masses()
         if self.st:
-            m = m * self._wt(self.tau)
+            m = m * self._wt(self.tau) / np.maximum(self._wt_norm(self.xi), 1e-9)
         fu, fv = self._face_frames()
         mu, pu = self._splat(self.u.shape, fu, [m, m * self.vel[:, 0]])
         mv, pv = self._splat(self.v.shape, fv, [m, m * self.vel[:, 1]])
@@ -148,7 +158,7 @@ class Sim:
             m = probe.masses()
             if self.st:
                 probe.tau = probe.st_rng.uniform(-0.5, 0.5, len(probe.pos))
-                m = m * self._wt(probe.tau)
+                m = m * self._wt(probe.tau)   # full-jitter reference scale (xi = 1)
             (mu,) = probe._splat(probe.u.shape, fu, [m])
             acc.append(np.median(mu[2:-2, 2:-2]))
         self.rho0_face = float(np.mean(acc)) / self.rho_l
@@ -285,7 +295,13 @@ class Sim:
         """ST-FLIP advection: each particle advances by dt*(1 + tau_new - tau_old),
         folding the jitter change into one step, sub-stepped at local CFL <= 1."""
         if self.st:
-            tau_new = self.st_rng.uniform(-0.5, 0.5, len(self.pos))
+            # Velocity-adaptive jitter attenuation (the paper's calm-water fix):
+            # full jitter where a particle crosses a cell per step, none where the
+            # flow is still, via a smoothstep of the local per-particle CFL.
+            cfl_p = np.abs(self.vel).max(1) * dt / self.dx
+            t = np.clip(cfl_p, 0.0, 1.0)
+            self.xi = t * t * (3.0 - 2.0 * t)
+            tau_new = self.xi * self.st_rng.uniform(-0.5, 0.5, len(self.pos))
             remaining = dt * (1.0 + tau_new - self.tau)
             self.tau = tau_new
         else:
