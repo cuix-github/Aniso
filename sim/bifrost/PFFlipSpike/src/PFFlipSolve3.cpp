@@ -221,6 +221,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              int st, int st_seed, int step_index,
              int adapt, float coarse_gain, float ws_epsilon,
              const Amino::Array<float>& scale_in,
+             const Amino::Array<Bifrost::Math::float3>& obstacles_min,
+             const Amino::Array<Bifrost::Math::float3>& obstacles_max,
              const Amino::Array<float>& tau_in,
              const Amino::Array<float>& u_wt, const Amino::Array<float>& v_wt,
              const Amino::Array<float>& w_wt,
@@ -329,6 +331,35 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     normalize(v, chM_v, chO_v);
     normalize(w, chM_w, chO_w);
 
+    const size_t nObs = std::min(obstacles_min.size(), obstacles_max.size());
+    // apply fn(face-kind, i, j, k) over every face whose centre lies inside a box.
+    auto forSolidFaces = [&](auto&& fn) {
+        for (size_t b = 0; b < nObs; ++b) {
+            const auto& m0 = obstacles_min[b];
+            const auto& m1 = obstacles_max[b];
+            for (int i = std::max(0, (int)std::ceil(m0.x));
+                 i <= std::min(NX, (int)std::floor(m1.x)); ++i)
+                for (int j = std::max(0, (int)std::ceil(m0.y - 0.5));
+                     j <= std::min(NY - 1, (int)std::floor(m1.y - 0.5)); ++j)
+                    for (int k = std::max(0, (int)std::ceil(m0.z - 0.5));
+                         k <= std::min(NZ - 1, (int)std::floor(m1.z - 0.5)); ++k)
+                        fn(0, i, j, k);
+            for (int i = std::max(0, (int)std::ceil(m0.x - 0.5));
+                 i <= std::min(NX - 1, (int)std::floor(m1.x - 0.5)); ++i)
+                for (int j = std::max(0, (int)std::ceil(m0.y));
+                     j <= std::min(NY, (int)std::floor(m1.y)); ++j)
+                    for (int k = std::max(0, (int)std::ceil(m0.z - 0.5));
+                         k <= std::min(NZ - 1, (int)std::floor(m1.z - 0.5)); ++k)
+                        fn(1, i, j, k);
+            for (int i = std::max(0, (int)std::ceil(m0.x - 0.5));
+                 i <= std::min(NX - 1, (int)std::floor(m1.x - 0.5)); ++i)
+                for (int j = std::max(0, (int)std::ceil(m0.y - 0.5));
+                     j <= std::min(NY - 1, (int)std::floor(m1.y - 0.5)); ++j)
+                    for (int k = std::max(0, (int)std::ceil(m0.z));
+                         k <= std::min(NZ, (int)std::floor(m1.z)); ++k)
+                        fn(2, i, j, k);
+        }
+    };
     auto walls = [&](Vec& uu, Vec& vv, Vec& ww) {
         for (int j = 0; j < NY; ++j)
             for (int k = 0; k < NZ; ++k) { uu[L.iu(0, j, k)] = 0.0; uu[L.iu(NX, j, k)] = 0.0; }
@@ -336,6 +367,11 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             for (int k = 0; k < NZ; ++k) { vv[L.iv(i, 0, k)] = 0.0; vv[L.iv(i, NY, k)] = 0.0; }
         for (int i = 0; i < NX; ++i)
             for (int j = 0; j < NY; ++j) { ww[L.iw(i, j, 0)] = 0.0; ww[L.iw(i, j, NZ)] = 0.0; }
+        forSolidFaces([&](int kind, int i, int j, int k) {
+            if (kind == 0) uu[L.iu(i, j, k)] = 0.0;
+            else if (kind == 1) vv[L.iv(i, j, k)] = 0.0;
+            else ww[L.iw(i, j, k)] = 0.0;
+        });
     };
     walls(u, v, w);
     Vec uStar = u, vStar = v, wStar = w;
@@ -635,6 +671,23 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         if (px < lo || px > hx) { px = std::clamp(px, lo, hx); vx = 0.0; }
         if (py < lo || py > hy) { py = std::clamp(py, lo, hy); vy = 0.0; }
         if (!flat && (pz < lo || pz > hz)) { pz = std::clamp(pz, lo, hz); vz = 0.0; }
+        for (size_t b = 0; b < nObs; ++b) {
+            const auto& m0 = obstacles_min[b];
+            const auto& m1 = obstacles_max[b];
+            const bool inZ = flat || (pz > m0.z && pz < m1.z);
+            if (px > m0.x && px < m1.x && py > m0.y && py < m1.y && inZ) {
+                double pen[6] = {px - m0.x, m1.x - px, py - m0.y, m1.y - py,
+                                 flat ? 1e30 : pz - m0.z, flat ? 1e30 : m1.z - pz};
+                int side = 0;
+                for (int q2 = 1; q2 < 6; ++q2) if (pen[q2] < pen[side]) side = q2;
+                if (side == 0) { px = m0.x - 0.01; vx = 0.0; }
+                else if (side == 1) { px = m1.x + 0.01; vx = 0.0; }
+                else if (side == 2) { py = m0.y - 0.01; vy = 0.0; }
+                else if (side == 3) { py = m1.y + 0.01; vy = 0.0; }
+                else if (side == 4) { pz = m0.z - 0.01; vz = 0.0; }
+                else { pz = m1.z + 0.01; vz = 0.0; }
+            }
+        }
         Px[pi] = px; Py[pi] = py; Pz[pi] = pz;
         Vx[pi] = vx; Vy[pi] = vy; Vz[pi] = vz;
         Tau[pi] = tauNew[pi]; Wt[pi] = wtNewV[pi];

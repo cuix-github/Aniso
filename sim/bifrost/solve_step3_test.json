@@ -529,6 +529,18 @@
           "portName": "max_speed",
           "portDirection": "output",
           "portType": "float"
+        },
+        {
+          "portName": "path_obstacles_min",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
+        },
+        {
+          "portName": "path_obstacles_max",
+          "portDirection": "input",
+          "portType": "string",
+          "portDefault": ""
         }
       ],
       "compoundNodes": [
@@ -735,6 +747,14 @@
         {
           "nodeName": "w_out_pos_synced",
           "nodeType": "File::NumPy::write_NumPy"
+        },
+        {
+          "nodeName": "r_obstacles_min",
+          "nodeType": "File::NumPy::read_NumPy"
+        },
+        {
+          "nodeName": "r_obstacles_max",
+          "nodeType": "File::NumPy::read_NumPy"
         }
       ],
       "connections": [
@@ -1425,6 +1445,30 @@
         {
           "source": "step.max_speed",
           "target": ".max_speed"
+        },
+        {
+          "source": ".path_obstacles_min",
+          "target": "r_obstacles_min.file_path"
+        },
+        {
+          "source": "t_pos.output",
+          "target": "r_obstacles_min.type"
+        },
+        {
+          "source": "r_obstacles_min.data",
+          "target": "step.obstacles_min"
+        },
+        {
+          "source": ".path_obstacles_max",
+          "target": "r_obstacles_max.file_path"
+        },
+        {
+          "source": "t_pos.output",
+          "target": "r_obstacles_max.type"
+        },
+        {
+          "source": "r_obstacles_max.data",
+          "target": "step.obstacles_max"
         }
       ],
       "values": [
