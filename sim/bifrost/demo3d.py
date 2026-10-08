@@ -42,10 +42,13 @@ def lattice(ni, nj, nk):
 
 
 def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
-                 extra_ports=None, seed_fn=None, obstacles=None):
+                 extra_ports=None, seed_fn=None, obstacles=None, init_arrays=None):
     d = os.path.join(HERE, "out", "loop3_" + tag)
     os.makedirs(d, exist_ok=True)
-    pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
+    if init_arrays is not None:
+        pos, typ = init_arrays["positions"], init_arrays["particle_phase"].astype(np.int32)
+    else:
+        pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
     mass = np.where(typ == 1, rho_l, rho_g).astype(np.float32)
     zeros = np.zeros(len(pos), np.float32)
     arrs = {"positions": pos.astype(np.float32), "velocities": np.zeros_like(pos, dtype=np.float32),
@@ -61,6 +64,12 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
                         else np.array([[-99.0, -99.0, -99.0]], np.float32)),
             "probes_u": lattice(nx + 1, ny, nz), "probes_v": lattice(nx, ny + 1, nz),
             "probes_w": lattice(nx, ny, nz + 1)}
+    if init_arrays is not None:
+        for k2 in ("velocities", "mass", "momx", "momy", "momz", "tau", "wt", "wtph",
+                   "scale", "phase_st"):
+            if k2 in init_arrays:
+                arrs[k2] = init_arrays[k2].astype(arrs[k2].dtype
+                                                  if k2 != "velocities" else np.float32)
     for k, v in arrs.items():
         np.save(os.path.join(d, k + ".npy"), v)
     args = [os.path.join(HERE, "run_sim_3d.bat"),
@@ -71,6 +80,10 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "--set-port", "pos_pattern", (d + "/frame.####").replace("\\", "/"),
             "--set-port", "diag_pattern", (d + "/diag.####").replace("\\", "/"),
             "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/"),
+            *[x for nm in ("velocities", "mass", "momx", "momy", "momz", "tau", "wt",
+                           "wtph", "scale", "phase")
+              for x in ("--set-port", "path_final_" + nm,
+                        (d + "/final_" + nm + ".npy").replace("\\", "/"))],
             *[x for k2, v2 in (extra_ports or {}).items()
               for x in ("--set-port", k2, str(v2))],
             "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/"),

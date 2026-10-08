@@ -158,6 +158,116 @@
      "portDefault": ""
     },
     {
+     "portName": "path_final_velocities",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_velocities",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_momx",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_momx",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_momy",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_momy",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_momz",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_momz",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_tau",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_tau",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_wtph",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_wtph",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_scale",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_scale",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_final_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_final_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
      "portName": "path_final_positions",
      "portDirection": "input",
      "portType": "string",
@@ -4129,6 +4239,46 @@
      "nodeType": "File::NumPy::read_NumPy"
     },
     {
+     "nodeName": "wf_final_velocities",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_momx",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_momy",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_momz",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_tau",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_wtph",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_scale",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "wf_final_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
      "nodeName": "r_momz",
      "nodeType": "File::NumPy::read_NumPy"
     },
@@ -4325,6 +4475,126 @@
     {
      "source": ".diag_pattern",
      "target": "loop.diag_pattern"
+    },
+    {
+     "source": "loop.velocities_out",
+     "target": "wf_final_velocities.data"
+    },
+    {
+     "source": ".path_final_velocities",
+     "target": "wf_final_velocities.file_path"
+    },
+    {
+     "source": "wf_final_velocities.success",
+     "target": ".ok_final_velocities"
+    },
+    {
+     "source": "loop.mass_out2",
+     "target": "wf_final_mass.data"
+    },
+    {
+     "source": ".path_final_mass",
+     "target": "wf_final_mass.file_path"
+    },
+    {
+     "source": "wf_final_mass.success",
+     "target": ".ok_final_mass"
+    },
+    {
+     "source": "loop.momx_out",
+     "target": "wf_final_momx.data"
+    },
+    {
+     "source": ".path_final_momx",
+     "target": "wf_final_momx.file_path"
+    },
+    {
+     "source": "wf_final_momx.success",
+     "target": ".ok_final_momx"
+    },
+    {
+     "source": "loop.momy_out",
+     "target": "wf_final_momy.data"
+    },
+    {
+     "source": ".path_final_momy",
+     "target": "wf_final_momy.file_path"
+    },
+    {
+     "source": "wf_final_momy.success",
+     "target": ".ok_final_momy"
+    },
+    {
+     "source": "loop.momz_out",
+     "target": "wf_final_momz.data"
+    },
+    {
+     "source": ".path_final_momz",
+     "target": "wf_final_momz.file_path"
+    },
+    {
+     "source": "wf_final_momz.success",
+     "target": ".ok_final_momz"
+    },
+    {
+     "source": "loop.tau_out2",
+     "target": "wf_final_tau.data"
+    },
+    {
+     "source": ".path_final_tau",
+     "target": "wf_final_tau.file_path"
+    },
+    {
+     "source": "wf_final_tau.success",
+     "target": ".ok_final_tau"
+    },
+    {
+     "source": "loop.wt_out2",
+     "target": "wf_final_wt.data"
+    },
+    {
+     "source": ".path_final_wt",
+     "target": "wf_final_wt.file_path"
+    },
+    {
+     "source": "wf_final_wt.success",
+     "target": ".ok_final_wt"
+    },
+    {
+     "source": "loop.wtph_out2",
+     "target": "wf_final_wtph.data"
+    },
+    {
+     "source": ".path_final_wtph",
+     "target": "wf_final_wtph.file_path"
+    },
+    {
+     "source": "wf_final_wtph.success",
+     "target": ".ok_final_wtph"
+    },
+    {
+     "source": "loop.scale_out2",
+     "target": "wf_final_scale.data"
+    },
+    {
+     "source": ".path_final_scale",
+     "target": "wf_final_scale.file_path"
+    },
+    {
+     "source": "wf_final_scale.success",
+     "target": ".ok_final_scale"
+    },
+    {
+     "source": "loop.phase_out2",
+     "target": "wf_final_phase.data"
+    },
+    {
+     "source": ".path_final_phase",
+     "target": "wf_final_phase.file_path"
+    },
+    {
+     "source": "wf_final_phase.success",
+     "target": ".ok_final_phase"
     },
     {
      "source": "zerof.output",
@@ -4556,6 +4826,106 @@
      "valueName": "zerof.value",
      "valueType": "float",
      "value": "0f"
+    },
+    {
+     "valueName": "wf_final_velocities.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_velocities.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momx.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momx.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momy.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momy.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momz.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_momz.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_tau.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_tau.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_wtph.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_wtph.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_scale.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_scale.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "wf_final_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
     }
    ]
   }

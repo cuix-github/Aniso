@@ -249,6 +249,30 @@ def build():
     for n in ("pos_pattern", "diag_pattern"):
         ports.append(P(n, "input", "string", ""))
         conns.append({"source": "." + n, "target": "loop." + n})
+    final_states = [("final_velocities", "loop.velocities_out", "t_pos"),
+                    ("final_mass", "loop.mass_out2", "t_flt"),
+                    ("final_momx", "loop.momx_out", "t_flt"),
+                    ("final_momy", "loop.momy_out", "t_flt"),
+                    ("final_momz", "loop.momz_out", "t_flt"),
+                    ("final_tau", "loop.tau_out2", "t_flt"),
+                    ("final_wt", "loop.wt_out2", "t_flt"),
+                    ("final_wtph", "loop.wtph_out2", "t_flt"),
+                    ("final_scale", "loop.scale_out2", "t_flt"),
+                    ("final_phase", "loop.phase_out2", "t_flt")]
+    for name, src, _ in final_states:
+        nodes.append({"nodeName": "wf_" + name, "nodeType": "File::NumPy::write_NumPy"})
+        ports.append(P("path_" + name, "input", "string", ""))
+        ports.append(P("ok_" + name, "output", "bool"))
+        conns += [
+            {"source": src, "target": "wf_" + name + ".data"},
+            {"source": ".path_" + name, "target": "wf_" + name + ".file_path"},
+            {"source": "wf_" + name + ".success", "target": ".ok_" + name},
+        ]
+        values += [
+            {"valueName": "wf_" + name + ".overwrite", "valueType": "bool", "value": "true"},
+            {"valueName": "wf_" + name + ".create_directories", "valueType": "bool",
+             "value": "true"},
+        ]
     ports += [P("path_final_positions", "input", "string", ""), P("ok_final", "output", "bool"),
               P("writes_total", "output", "float")]
     conns += [

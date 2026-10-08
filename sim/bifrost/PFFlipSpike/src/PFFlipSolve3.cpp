@@ -884,9 +884,28 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         (*outVel)[i] = {static_cast<float>(Vx[i]), static_cast<float>(Vy[i]),
                         static_cast<float>(Vz[i])};
         const double sdt = Tau[i] * dt;
-        (*outSync)[i] = {static_cast<float>(Px[i] - sdt * Vx[i]),
-                         static_cast<float>(Py[i] - sdt * Vy[i]),
-                         static_cast<float>(flat ? Pz[i] : Pz[i] - sdt * Vz[i])};
+        double sx = Px[i] - sdt * Vx[i], sy = Py[i] - sdt * Vy[i];
+        double sz = flat ? Pz[i] : Pz[i] - sdt * Vz[i];
+        // the resynchronized (render) position must respect obstacles too
+        for (size_t b = 0; b < nObs; ++b) {
+            const auto& m0 = obstacles_min[b];
+            const auto& m1 = obstacles_max[b];
+            const bool inZ = flat || (sz > m0.z && sz < m1.z);
+            if (sx > m0.x && sx < m1.x && sy > m0.y && sy < m1.y && inZ) {
+                double pen[6] = {sx - m0.x, m1.x - sx, sy - m0.y, m1.y - sy,
+                                 flat ? 1e30 : sz - m0.z, flat ? 1e30 : m1.z - sz};
+                int side = 0;
+                for (int q2 = 1; q2 < 6; ++q2) if (pen[q2] < pen[side]) side = q2;
+                if (side == 0) sx = m0.x - 0.01;
+                else if (side == 1) sx = m1.x + 0.01;
+                else if (side == 2) sy = m0.y - 0.01;
+                else if (side == 3) sy = m1.y + 0.01;
+                else if (side == 4) sz = m0.z - 0.01;
+                else sz = m1.z + 0.01;
+            }
+        }
+        (*outSync)[i] = {static_cast<float>(sx), static_cast<float>(sy),
+                         static_cast<float>(sz)};
         const double rhoP = Ph01[i] >= 0.5 ? rl : rg;
         const double mEff = rhoP * std::pow(Scl[i], dExp) *
                             (Scl[i] > 1.5 ? coarse_gain : 1.0);
