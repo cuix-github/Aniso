@@ -26,7 +26,7 @@ from PIL import Image
 class Sim:
     def __init__(self, nx, ny, rho_l=1000.0, rho_g=1.0, alpha_l=0.97, alpha_g=0.9, g=-9.8,
                  escape=False, esc_phi=0.3, drag_droplet=1.0, drag_bubble=8.0, buoyancy=2.0,
-                 st=False, sub_advect=False, adapt=False):
+                 st=False, sub_advect=False, adapt=False, obstacles=None):
         self.nx, self.ny, self.dx = nx, ny, 1.0
         self.rho_l, self.rho_g = rho_l, rho_g
         self.alpha = {1: alpha_l, 0: alpha_g}
@@ -55,6 +55,11 @@ class Sim:
         self.adapt = adapt
         self.scale = np.zeros(0)
         self.coarse_gain = 1.0
+        # Solid obstacles as axis-aligned boxes [(xmin, ymin, xmax, ymax), ...]:
+        # faces inside a box carry beta = 0 and zero velocity (a wall, anywhere);
+        # particles that end up inside are pushed out along the axis of least
+        # penetration, losing that velocity component, exactly like the outer walls.
+        self.obstacles = [tuple(map(float, o)) for o in (obstacles or [])]
         self.st_rng = np.random.default_rng(7)
         self.tau = np.zeros(0)
         self.u = np.zeros((nx + 1, ny))   # x-velocity on vertical faces
@@ -77,6 +82,9 @@ class Sim:
             ts.append(liquid_mask(p[:, 0], p[:, 1]).astype(np.int32))
         self.pos = np.concatenate(ps)
         self.typ = np.concatenate(ts)
+        if self.obstacles:
+            keep = ~self._inside_solid(self.pos)
+            self.pos, self.typ = self.pos[keep], self.typ[keep]
         self.vel = np.zeros_like(self.pos)
         self.scale = np.ones(len(self.pos))
         self.tau = np.zeros(len(self.pos))      # particles start synchronized
@@ -157,9 +165,49 @@ class Sim:
             self.v = np.where(mv > 0, pv / np.maximum(mv, 1e-300), 0.0)
         self._enforce_walls()
 
+    def _inside_solid(self, pts):
+        inside = np.zeros(len(pts), dtype=bool)
+        for x0, y0, x1, y1 in self.obstacles:
+            inside |= ((pts[:, 0] > x0) & (pts[:, 0] < x1) &
+                       (pts[:, 1] > y0) & (pts[:, 1] < y1))
+        return inside
+
+    def _solid_face_masks(self):
+        iu, ju = np.meshgrid(np.arange(self.nx + 1), np.arange(self.ny) + 0.5,
+                             indexing="ij")
+        iv, jv = np.meshgrid(np.arange(self.nx) + 0.5, np.arange(self.ny + 1),
+                             indexing="ij")
+        mu = np.zeros(self.u.shape, dtype=bool)
+        mv = np.zeros(self.v.shape, dtype=bool)
+        for x0, y0, x1, y1 in self.obstacles:
+            mu |= (iu >= x0) & (iu <= x1) & (ju >= y0) & (ju <= y1)
+            mv |= (iv >= x0) & (iv <= x1) & (jv >= y0) & (jv <= y1)
+        return mu, mv
+
+    def _push_out(self):
+        for x0, y0, x1, y1 in self.obstacles:
+            inside = ((self.pos[:, 0] > x0) & (self.pos[:, 0] < x1) &
+                      (self.pos[:, 1] > y0) & (self.pos[:, 1] < y1))
+            if not inside.any():
+                continue
+            px, py = self.pos[inside, 0], self.pos[inside, 1]
+            dxm = np.stack([px - x0, x1 - px, py - y0, y1 - py], 1)
+            side = np.argmin(dxm, 1)
+            tx = np.where(side == 0, x0 - 0.01, np.where(side == 1, x1 + 0.01, px))
+            ty = np.where(side == 2, y0 - 0.01, np.where(side == 3, y1 + 0.01, py))
+            self.pos[inside, 0], self.pos[inside, 1] = tx, ty
+            vz = self.vel[inside]
+            vz[side <= 1, 0] = 0.0
+            vz[side >= 2, 1] = 0.0
+            self.vel[inside] = vz
+
     def _enforce_walls(self):
         self.u[0, :] = self.u[-1, :] = 0.0
         self.v[:, 0] = self.v[:, -1] = 0.0
+        if self.obstacles:
+            mu, mv = self._solid_face_masks()
+            self.u[mu] = 0.0
+            self.v[mv] = 0.0
 
     # --- Eq. 7: the phase field from raw splatted face mass
     def phase(self, raw):
@@ -213,6 +261,10 @@ class Sim:
         bv = 1.0 / rho_v
         bu[0, :] = bu[-1, :] = 0.0     # closed walls
         bv[:, 0] = bv[:, -1] = 0.0
+        if self.obstacles:
+            mu_s, mv_s = self._solid_face_masks()
+            bu[mu_s] = 0.0
+            bv[mv_s] = 0.0
 
         div = (self.u[1:, :] - self.u[:-1, :]) + (self.v[:, 1:] - self.v[:, :-1])
         b = -div / dt
@@ -335,6 +387,8 @@ class Sim:
             self._advect_st(dt, ballistic=esc)
         else:
             self.advect(dt, ballistic=esc)
+        if self.obstacles:
+            self._push_out()
         if self.adapt:
             self._adapt_particles()
 
