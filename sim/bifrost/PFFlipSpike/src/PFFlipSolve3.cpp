@@ -258,6 +258,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
              Amino::Ptr<Amino::Array<float>>& out_escaped,
              Amino::Ptr<Amino::Array<float>>& tau_out,
              Amino::Ptr<Amino::Array<float>>& scale_out,
+             Amino::Ptr<Amino::Array<bool>>& mask_fine,
+             Amino::Ptr<Amino::Array<bool>>& mask_coarse,
              Amino::Ptr<Amino::Array<float>>& out_phase_state,
              Amino::Ptr<Amino::Array<float>>& out_wt,
              Amino::Ptr<Amino::Array<float>>& out_wtph,
@@ -833,6 +835,31 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         }
     }
 
+    // ---- final obstacle sweep: merge centroids and split children may land
+    // inside a box; push every particle out along least penetration.
+    if (nObs > 0) {
+        for (size_t i = 0; i < Px.size(); ++i) {
+            for (size_t b = 0; b < nObs; ++b) {
+                const auto& m0 = obstacles_min[b];
+                const auto& m1 = obstacles_max[b];
+                const bool inZ = flat || (Pz[i] > m0.z && Pz[i] < m1.z);
+                if (Px[i] > m0.x && Px[i] < m1.x && Py[i] > m0.y && Py[i] < m1.y && inZ) {
+                    double pen[6] = {Px[i] - m0.x, m1.x - Px[i], Py[i] - m0.y,
+                                     m1.y - Py[i], flat ? 1e30 : Pz[i] - m0.z,
+                                     flat ? 1e30 : m1.z - Pz[i]};
+                    int side = 0;
+                    for (int q2 = 1; q2 < 6; ++q2) if (pen[q2] < pen[side]) side = q2;
+                    if (side == 0) { Px[i] = m0.x - 0.01; Vx[i] = 0.0; }
+                    else if (side == 1) { Px[i] = m1.x + 0.01; Vx[i] = 0.0; }
+                    else if (side == 2) { Py[i] = m0.y - 0.01; Vy[i] = 0.0; }
+                    else if (side == 3) { Py[i] = m1.y + 0.01; Vy[i] = 0.0; }
+                    else if (side == 4) { Pz[i] = m0.z - 0.01; Vz[i] = 0.0; }
+                    else { Pz[i] = m1.z + 0.01; Vz[i] = 0.0; }
+                }
+            }
+        }
+    }
+
     // ---- pack outputs at the final particle count.
     const size_t nf = Px.size();
     auto outPos = Amino::newMutablePtr<Amino::Array<Bifrost::Math::float3>>(nf);
@@ -848,6 +875,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     auto outWt = Amino::newMutablePtr<Amino::Array<float>>(nf);
     auto outWtPh = Amino::newMutablePtr<Amino::Array<float>>(nf);
     auto outEsc = Amino::newMutablePtr<Amino::Array<float>>(nf);
+    auto outMF = Amino::newMutablePtr<Amino::Array<bool>>(nf);
+    auto outMC = Amino::newMutablePtr<Amino::Array<bool>>(nf);
     double maxSpeed = 0.0;
     for (size_t i = 0; i < nf; ++i) {
         (*outPos)[i] = {static_cast<float>(Px[i]), static_cast<float>(Py[i]),
@@ -872,6 +901,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         (*outWt)[i] = static_cast<float>(wp);
         (*outWtPh)[i] = static_cast<float>(wp * Ph01[i]);
         (*outEsc)[i] = Esc[i] ? 1.0f : 0.0f;
+        (*outMF)[i] = Scl[i] < 1.5;
+        (*outMC)[i] = Scl[i] >= 1.5;
         maxSpeed = std::max({maxSpeed, std::fabs(Vx[i]), std::fabs(Vy[i]),
                              std::fabs(Vz[i])});
     }
@@ -898,6 +929,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     out_escaped = outEsc.toImmutable();
     tau_out = outTau.toImmutable();
     scale_out = outScl.toImmutable();
+    mask_fine = outMF.toImmutable();
+    mask_coarse = outMC.toImmutable();
     out_phase_state = outPh.toImmutable();
     out_wt = outWt.toImmutable();
     out_wtph = outWtPh.toImmutable();
