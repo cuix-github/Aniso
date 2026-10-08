@@ -53,6 +53,10 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "momx": zeros, "momy": zeros, "momz": zeros,
             "tau": zeros, "wt": np.ones(len(pos), np.float32),
             "wtph": typ.astype(np.float32),
+            "scale": np.ones(len(pos), np.float32),
+            "phase_st": typ.astype(np.float32),
+            "obs_min": np.array([[-100.0, -100.0, -100.0]], np.float32),
+            "obs_max": np.array([[-99.0, -99.0, -99.0]], np.float32),
             "probes_u": lattice(nx + 1, ny, nz), "probes_v": lattice(nx, ny + 1, nz),
             "probes_w": lattice(nx, ny, nz + 1)}
     for k, v in arrs.items():
@@ -67,7 +71,8 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/"),
             *[x for k2, v2 in (extra_ports or {}).items()
               for x in ("--set-port", k2, str(v2))],
-            "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/")]
+            "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/"),
+            "--set-port", "scl_pattern", (d + "/scl.####").replace("\\", "/")]
     for k in arrs:
         args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)

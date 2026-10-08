@@ -301,25 +301,37 @@ def build3d():
         top["connections"].append({"source": "." + n, "target": "loop." + n})
     body["compoundNodes"] += [
         {"nodeName": "w_esc", "nodeType": "File::NumPy::write_NumPy"},
+        {"nodeName": "w_scl", "nodeType": "File::NumPy::write_NumPy"},
         {"nodeName": "ok_fe", "nodeType": "Core::Type_Conversion::to_float"},
+        {"nodeName": "ok_fs", "nodeType": "Core::Type_Conversion::to_float"},
     ]
     for n2 in body["compoundNodes"]:
         if n2["nodeName"] == "ok_acc":
-            n2["multiInPortNames"] = ["s", "p", "q", "e"]
+            n2["multiInPortNames"] = ["s", "p", "q", "e", "r"]
     conns += [
         {"source": "step.out_escaped", "target": "w_esc.data"},
         {"source": ".esc_pattern", "target": "w_esc.file_path"},
         {"source": ".current_index", "target": "w_esc.frame"},
+        {"source": "step.scale_out", "target": "w_scl.data"},
+        {"source": ".scl_pattern", "target": "w_scl.file_path"},
+        {"source": ".current_index", "target": "w_scl.frame"},
         {"source": "w_esc.success", "target": "ok_fe.from"},
         {"source": "ok_fe.float", "target": "ok_acc.first.e"},
+        {"source": "w_scl.success", "target": "ok_fs.from"},
+        {"source": "ok_fs.float", "target": "ok_acc.first.r"},
     ]
     body["values"] += [
         {"valueName": "w_esc.overwrite", "valueType": "bool", "value": "true"},
         {"valueName": "w_esc.create_directories", "valueType": "bool", "value": "true"},
+        {"valueName": "w_scl.overwrite", "valueType": "bool", "value": "true"},
+        {"valueName": "w_scl.create_directories", "valueType": "bool", "value": "true"},
     ]
     body["ports"].append(P("esc_pattern", "input", "string"))
     top["ports"].append(P("esc_pattern", "input", "string", ""))
     top["connections"].append({"source": ".esc_pattern", "target": "loop.esc_pattern"})
+    body["ports"].append(P("scl_pattern", "input", "string"))
+    top["ports"].append(P("scl_pattern", "input", "string", ""))
+    top["connections"].append({"source": ".scl_pattern", "target": "loop.scl_pattern"})
 
     conns += [
         {"source": "set_my.out_geometry", "target": "set_mz.geometry"},
@@ -505,6 +517,188 @@ def build3d():
             {"source": ".path_" + n, "target": "r_" + n + ".file_path"},
             {"source": "t_flt.output", "target": "r_" + n + ".type"},
             {"source": "r_" + n + ".data", "target": "loop." + n + "_in"},
+        ]
+
+    # ---- adaptive tier wiring: a second (coarse, 2x radius) splat family per grid,
+    # the epsilon-encoded weight-sum channel for both tiers, per-tier point sets via
+    # cull_points on the scale state, and the obstacle/scale plumbing.
+    body["compoundNodes"] += [
+        {"nodeName": "one_prop", "valueType": "float"},
+        {"nodeName": "set_one", "nodeType": "Geometry::Properties::set_geo_property"},
+        {"nodeName": "set_scl", "nodeType": "Geometry::Properties::set_geo_property"},
+    ]
+    conns = body["connections"]
+    for k in conns:
+        if k["source"] == "set_wt.out_geometry" and k["target"] == "set_ph.geometry":
+            k["source"] = "set_scl.out_geometry"
+    conns += [
+        {"source": "set_wt.out_geometry", "target": "set_one.geometry"},
+        {"source": "set_one.out_geometry", "target": "set_scl.geometry"},
+        {"source": "one_prop.output", "target": "set_one.data"},
+        {"source": "zero.output", "target": "set_one.default"},
+        {"source": ".scale_in2", "target": "set_scl.data"},
+        {"source": "zero.output", "target": "set_scl.default"},
+    ]
+    body["values"] += [
+        {"valueName": "one_prop.value", "valueType": "float", "value": "1f"},
+        {"valueName": "set_one.property", "valueType": "string", "value": "voxel_one"},
+        {"valueName": "set_scl.property", "valueType": "string", "value": "voxel_scl"},
+    ]
+    # per-tier point sets: tier membership compared from the scale state (equal
+    # auto-loops over arrays, yielding array<bool>); delete_points removes the
+    # other tier. No comparison operators ship, but equality does.
+    body["compoundNodes"] += [
+        {"nodeName": "eq_f", "nodeType": "Core::Logic::equal"},
+        {"nodeName": "eq_c", "nodeType": "Core::Logic::equal"},
+        {"nodeName": "two_v", "valueType": "float"},
+        {"nodeName": "one_v", "valueType": "float"},
+    ]
+    body["values"] += [
+        {"valueName": "two_v.value", "valueType": "float", "value": "2f"},
+        {"valueName": "one_v.value", "valueType": "float", "value": "1f"},
+    ]
+    conns += [
+        {"source": ".scale_in2", "target": "eq_c.first"},
+        {"source": "two_v.output", "target": "eq_c.second"},
+        {"source": ".scale_in2", "target": "eq_f.first"},
+        {"source": "one_v.output", "target": "eq_f.second"},
+    ]
+    for tier, maskeq in (("f", "eq_c"), ("c", "eq_f")):
+        body["compoundNodes"].append(
+            {"nodeName": "cull_" + tier, "nodeType": "Modeling::Common::delete_points"})
+        conns += [
+            {"source": "set_ph.out_geometry", "target": "cull_" + tier + ".geometry"},
+            {"source": maskeq + ".output", "target": "cull_" + tier + ".points_to_delete"},
+        ]
+    # rewire the existing (now fine-tier) chains to the fine point set, add ws splat,
+    # and build the coarse family (double radius) with its own p2v+splats+samples.
+    for g2 in ("u", "v", "w"):
+        for nd in ("spos_" + g2,):
+            for k in conns:
+                if k["source"] == "set_ph.out_geometry" and k["target"] == nd + ".geometry":
+                    k["source"] = "cull_f.out_geometry"
+        body["compoundNodes"] += [
+            {"nodeName": "sp5_" + g2, "nodeType": "Geometry::Volume::splat_points_into_volume"},
+            {"nodeName": "sws_" + g2, "nodeType": "Geometry::Query::sample_volume"},
+            {"nodeName": "sposc_" + g2, "nodeType": "Geometry::Properties::set_geo_property_data"},
+        ]
+        conns += [
+            {"source": "sp4_" + g2 + ".out_volume", "target": "sp5_" + g2 + ".volume"},
+            {"source": "spos_" + g2 + ".out_geometry", "target": "sp5_" + g2 + ".points"},
+            {"source": ".radius", "target": "sp5_" + g2 + ".radius"},
+            {"source": "sp5_" + g2 + ".out_volume", "target": "sws_" + g2 + ".volume"},
+            {"source": ".probes_" + g2, "target": "sws_" + g2 + ".positions"},
+            {"source": ".sample_default", "target": "sws_" + g2 + ".default"},
+            {"source": "sws_" + g2 + ".sampled_data", "target": "step." + g2 + "_ws"},
+            {"source": "cull_c.out_geometry", "target": "sposc_" + g2 + ".geometry"},
+            {"source": "add_" + g2 + ".output2", "target": "sposc_" + g2 + ".data"},
+        ]
+        body["values"] += [
+            {"valueName": "sp5_" + g2 + ".create_properties", "valueType": "bool", "value": "true"},
+            {"valueName": "sp5_" + g2 + ".properties", "valueType": "string", "value": "voxel_one"},
+            {"valueName": "sp5_" + g2 + ".kernel",
+             "valueType": "Geometry::Volume::SplatKernelType", "value": "kLinearKernel"},
+            {"valueName": "sp5_" + g2 + ".add_to_weights", "valueType": "float", "value": "0f"},
+            {"valueName": "sp5_" + g2 + ".add_to_denominator", "valueType": "float", "value": "16f"},
+            {"valueName": "sp5_" + g2 + ".smoothing", "valueType": "float", "value": "0f"},
+            {"valueName": "sp5_" + g2 + ".coarsest_depth", "valueType": "int", "value": "0"},
+            {"valueName": "sws_" + g2 + ".property", "valueType": "string", "value": "voxel_one"},
+            {"valueName": "sws_" + g2 + ".sampler",
+             "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+            {"valueName": "sposc_" + g2 + ".property", "valueType": "string",
+             "value": "point_position"},
+        ]
+        prev = "sp5_" + g2 + ".out_volume"
+        mom = {"u": "voxel_mx", "v": "voxel_my", "w": "voxel_mz"}[g2]
+        for idx, prop in (("1", "voxel_m_c"), ("2", mom + "_c"), ("3", "voxel_ph_c"),
+                          ("4", "voxel_wt_c"), ("5", "voxel_one_c")):
+            nm = "spc" + idx + "_" + g2
+            body["compoundNodes"].append(
+                {"nodeName": nm, "nodeType": "Geometry::Volume::splat_points_into_volume"})
+            conns += [
+                {"source": prev, "target": nm + ".volume"},
+                {"source": "sposc_" + g2 + ".out_geometry", "target": nm + ".points"},
+                {"source": ".radius_coarse", "target": nm + ".radius"},
+            ]
+            body["values"] += [
+                {"valueName": nm + ".create_properties", "valueType": "bool", "value": "true"},
+                {"valueName": nm + ".properties", "valueType": "string", "value": prop},
+                {"valueName": nm + ".kernel",
+                 "valueType": "Geometry::Volume::SplatKernelType", "value": "kLinearKernel"},
+                {"valueName": nm + ".add_to_weights", "valueType": "float", "value": "0f"},
+                {"valueName": nm + ".add_to_denominator", "valueType": "float",
+                 "value": "16f" if prop == "voxel_one" else "0.000001f"},
+                {"valueName": nm + ".smoothing", "valueType": "float", "value": "0f"},
+                {"valueName": nm + ".coarsest_depth", "valueType": "int", "value": "0"},
+            ]
+            prev = nm + ".out_volume"
+        for cname, prop, port in (("smc", "voxel_m_c", "_mass"), ("soc", mom + "_c", "_mom"),
+                                  ("sqc", "voxel_ph_c", "_phase"), ("swtc", "voxel_wt_c", "_wt"),
+                                  ("swsc", "voxel_one_c", "_ws")):
+            nm = cname + "_" + g2
+            body["compoundNodes"].append(
+                {"nodeName": nm, "nodeType": "Geometry::Query::sample_volume"})
+            conns += [
+                {"source": prev, "target": nm + ".volume"},
+                {"source": ".probes_" + g2, "target": nm + ".positions"},
+                {"source": ".sample_default", "target": nm + ".default"},
+                {"source": nm + ".sampled_data", "target": "step." + g2 + "2" + port},
+            ]
+            body["values"] += [
+                {"valueName": nm + ".property", "valueType": "string", "value": prop},
+                {"valueName": nm + ".sampler",
+                 "valueType": "Geometry::Query::SamplerType", "value": "kLinear"},
+            ]
+    # the coarse tier shares the shifted positions already computed per grid: expose
+    # add_<g>.output to the coarse position setter via a second output fanout - the
+    # connection above used add_<g>.output2 placeholder; fix to .output
+    for k in conns:
+        if k["source"].endswith(".output2"):
+            k["source"] = k["source"].replace(".output2", ".output")
+    # node scalar/state plumbing
+    for n, t, dv in (("adapt", "int", "0"), ("coarse_gain", "float", "1f"),
+                     ("ws_epsilon", "float", "16f"), ("radius_coarse", "float", "3f")):
+        if n != "radius_coarse":
+            body["ports"].append(P(n, "input", t))
+            conns.append({"source": "." + n, "target": "step." + n})
+        else:
+            body["ports"].append(P(n, "input", t))
+        top["ports"].append(P(n, "input", t, dv))
+        top["connections"].append({"source": "." + n, "target": "loop." + n})
+    body["ports"] += [
+        P("mass_out2", "output", "array<float>"),
+        P("scale_in2", "input", "array<float>"), P("scale_out2", "output", "array<float>"),
+        P("phase_in2", "input", "array<float>"), P("phase_out2", "output", "array<float>"),
+        P("obstacles_min", "input", "array<Math::float3>"),
+        P("obstacles_max", "input", "array<Math::float3>"),
+    ]
+    conns += [
+        {"source": "step.out_mass", "target": ".mass_out2"},
+        {"source": ".scale_in2", "target": "step.scale_in"},
+        {"source": "step.scale_out", "target": ".scale_out2"},
+        {"source": "step.out_phase_state", "target": ".phase_out2"},
+        {"source": ".obstacles_min", "target": "step.obstacles_min"},
+        {"source": ".obstacles_max", "target": "step.obstacles_max"},
+    ]
+    # particle_phase into the step node now comes from the phase state
+    for k in conns:
+        if k["source"] == ".particle_phase" and k["target"] == "step.particle_phase":
+            k["source"] = ".phase_in2"
+    body["iterateCompound"]["ports"] += [
+        {"portKind": "state", "inputPortName": "mass_in", "outputPortName": "mass_out2"},
+        {"portKind": "state", "inputPortName": "scale_in2", "outputPortName": "scale_out2"},
+        {"portKind": "state", "inputPortName": "phase_in2", "outputPortName": "phase_out2"},
+    ]
+    for n, rt in (("scale", "t_flt"), ("phase_st", "t_flt"),
+                  ("obs_min", "t_pos"), ("obs_max", "t_pos")):
+        top["ports"].append(P("path_" + n, "input", "string", ""))
+        top["compoundNodes"].append({"nodeName": "r2_" + n, "nodeType": "File::NumPy::read_NumPy"})
+        tgt = {"scale": "scale_in2", "phase_st": "phase_in2",
+               "obs_min": "obstacles_min", "obs_max": "obstacles_max"}[n]
+        top["connections"] += [
+            {"source": ".path_" + n, "target": "r2_" + n + ".file_path"},
+            {"source": rt + ".output", "target": "r2_" + n + ".type"},
+            {"source": "r2_" + n + ".data", "target": "loop." + tgt},
         ]
 
     g["compounds"][0]["name"] = "User::PFFlip::sim_3d"

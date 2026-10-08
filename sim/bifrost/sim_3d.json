@@ -216,6 +216,12 @@
      "portDefault": ""
     },
     {
+     "portName": "scl_pattern",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
      "portName": "nz",
      "portDirection": "input",
      "portType": "int",
@@ -265,6 +271,54 @@
     },
     {
      "portName": "path_wtph",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "adapt",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "0"
+    },
+    {
+     "portName": "coarse_gain",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "1f"
+    },
+    {
+     "portName": "ws_epsilon",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "16f"
+    },
+    {
+     "portName": "radius_coarse",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "3f"
+    },
+    {
+     "portName": "path_scale",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_phase_st",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_obs_min",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_obs_max",
      "portDirection": "input",
      "portType": "string",
      "portDefault": ""
@@ -467,6 +521,11 @@
        "portType": "string"
       },
       {
+       "portName": "scl_pattern",
+       "portDirection": "input",
+       "portType": "string"
+      },
+      {
        "portName": "momz_in",
        "portDirection": "input",
        "portType": "array<float>"
@@ -530,6 +589,61 @@
        "portName": "wtph_out2",
        "portDirection": "output",
        "portType": "array<float>"
+      },
+      {
+       "portName": "adapt",
+       "portDirection": "input",
+       "portType": "int"
+      },
+      {
+       "portName": "coarse_gain",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "ws_epsilon",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "radius_coarse",
+       "portDirection": "input",
+       "portType": "float"
+      },
+      {
+       "portName": "mass_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "scale_in2",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "scale_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "phase_in2",
+       "portDirection": "input",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "phase_out2",
+       "portDirection": "output",
+       "portType": "array<float>"
+      },
+      {
+       "portName": "obstacles_min",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "obstacles_max",
+       "portDirection": "input",
+       "portType": "array<Math::float3>"
       }
      ],
      "compounds": [],
@@ -599,7 +713,8 @@
         "s",
         "p",
         "q",
-        "e"
+        "e",
+        "r"
        ]
       },
       {
@@ -743,7 +858,15 @@
        "nodeType": "File::NumPy::write_NumPy"
       },
       {
+       "nodeName": "w_scl",
+       "nodeType": "File::NumPy::write_NumPy"
+      },
+      {
        "nodeName": "ok_fe",
+       "nodeType": "Core::Type_Conversion::to_float"
+      },
+      {
+       "nodeName": "ok_fs",
        "nodeType": "Core::Type_Conversion::to_float"
       },
       {
@@ -777,6 +900,198 @@
       {
        "nodeName": "sw_w",
        "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "one_prop",
+       "valueType": "float"
+      },
+      {
+       "nodeName": "set_one",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "set_scl",
+       "nodeType": "Geometry::Properties::set_geo_property"
+      },
+      {
+       "nodeName": "eq_f",
+       "nodeType": "Core::Logic::equal"
+      },
+      {
+       "nodeName": "eq_c",
+       "nodeType": "Core::Logic::equal"
+      },
+      {
+       "nodeName": "two_v",
+       "valueType": "float"
+      },
+      {
+       "nodeName": "one_v",
+       "valueType": "float"
+      },
+      {
+       "nodeName": "cull_f",
+       "nodeType": "Modeling::Common::delete_points"
+      },
+      {
+       "nodeName": "cull_c",
+       "nodeType": "Modeling::Common::delete_points"
+      },
+      {
+       "nodeName": "sp5_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sws_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sposc_u",
+       "nodeType": "Geometry::Properties::set_geo_property_data"
+      },
+      {
+       "nodeName": "spc1_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc2_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc3_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc4_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc5_u",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "smc_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "soc_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sqc_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swtc_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swsc_u",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sp5_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sws_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sposc_v",
+       "nodeType": "Geometry::Properties::set_geo_property_data"
+      },
+      {
+       "nodeName": "spc1_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc2_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc3_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc4_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc5_v",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "smc_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "soc_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sqc_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swtc_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swsc_v",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sp5_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "sws_w",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sposc_w",
+       "nodeType": "Geometry::Properties::set_geo_property_data"
+      },
+      {
+       "nodeName": "spc1_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc2_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc3_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc4_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "spc5_w",
+       "nodeType": "Geometry::Volume::splat_points_into_volume"
+      },
+      {
+       "nodeName": "smc_w",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "soc_w",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "sqc_w",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swtc_w",
+       "nodeType": "Geometry::Query::sample_volume"
+      },
+      {
+       "nodeName": "swsc_w",
+       "nodeType": "Geometry::Query::sample_volume"
       }
      ],
      "connections": [
@@ -797,7 +1112,7 @@
        "target": "set_my.geometry"
       },
       {
-       "source": "set_wt.out_geometry",
+       "source": "set_scl.out_geometry",
        "target": "set_ph.geometry"
       },
       {
@@ -841,7 +1156,7 @@
        "target": "add_u.first.off"
       },
       {
-       "source": "set_ph.out_geometry",
+       "source": "cull_f.out_geometry",
        "target": "spos_u.geometry"
       },
       {
@@ -945,7 +1260,7 @@
        "target": "add_v.first.off"
       },
       {
-       "source": "set_ph.out_geometry",
+       "source": "cull_f.out_geometry",
        "target": "spos_v.geometry"
       },
       {
@@ -1113,7 +1428,7 @@
        "target": "step.velocities"
       },
       {
-       "source": ".particle_phase",
+       "source": ".phase_in2",
        "target": "step.particle_phase"
       },
       {
@@ -1237,12 +1552,32 @@
        "target": "w_esc.frame"
       },
       {
+       "source": "step.scale_out",
+       "target": "w_scl.data"
+      },
+      {
+       "source": ".scl_pattern",
+       "target": "w_scl.file_path"
+      },
+      {
+       "source": ".current_index",
+       "target": "w_scl.frame"
+      },
+      {
        "source": "w_esc.success",
        "target": "ok_fe.from"
       },
       {
        "source": "ok_fe.float",
        "target": "ok_acc.first.e"
+      },
+      {
+       "source": "w_scl.success",
+       "target": "ok_fs.from"
+      },
+      {
+       "source": "ok_fs.float",
+       "target": "ok_acc.first.r"
       },
       {
        "source": "set_my.out_geometry",
@@ -1265,7 +1600,7 @@
        "target": "add_w.first.off"
       },
       {
-       "source": "set_ph.out_geometry",
+       "source": "cull_f.out_geometry",
        "target": "spos_w.geometry"
       },
       {
@@ -1523,6 +1858,626 @@
       {
        "source": "step.out_wtph",
        "target": ".wtph_out2"
+      },
+      {
+       "source": "set_wt.out_geometry",
+       "target": "set_one.geometry"
+      },
+      {
+       "source": "set_one.out_geometry",
+       "target": "set_scl.geometry"
+      },
+      {
+       "source": "one_prop.output",
+       "target": "set_one.data"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_one.default"
+      },
+      {
+       "source": ".scale_in2",
+       "target": "set_scl.data"
+      },
+      {
+       "source": "zero.output",
+       "target": "set_scl.default"
+      },
+      {
+       "source": ".scale_in2",
+       "target": "eq_c.first"
+      },
+      {
+       "source": "two_v.output",
+       "target": "eq_c.second"
+      },
+      {
+       "source": ".scale_in2",
+       "target": "eq_f.first"
+      },
+      {
+       "source": "one_v.output",
+       "target": "eq_f.second"
+      },
+      {
+       "source": "set_ph.out_geometry",
+       "target": "cull_f.geometry"
+      },
+      {
+       "source": "eq_c.output",
+       "target": "cull_f.points_to_delete"
+      },
+      {
+       "source": "set_ph.out_geometry",
+       "target": "cull_c.geometry"
+      },
+      {
+       "source": "eq_f.output",
+       "target": "cull_c.points_to_delete"
+      },
+      {
+       "source": "sp4_u.out_volume",
+       "target": "sp5_u.volume"
+      },
+      {
+       "source": "spos_u.out_geometry",
+       "target": "sp5_u.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp5_u.radius"
+      },
+      {
+       "source": "sp5_u.out_volume",
+       "target": "sws_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "sws_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sws_u.default"
+      },
+      {
+       "source": "sws_u.sampled_data",
+       "target": "step.u_ws"
+      },
+      {
+       "source": "cull_c.out_geometry",
+       "target": "sposc_u.geometry"
+      },
+      {
+       "source": "add_u.output",
+       "target": "sposc_u.data"
+      },
+      {
+       "source": "sp5_u.out_volume",
+       "target": "spc1_u.volume"
+      },
+      {
+       "source": "sposc_u.out_geometry",
+       "target": "spc1_u.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc1_u.radius"
+      },
+      {
+       "source": "spc1_u.out_volume",
+       "target": "spc2_u.volume"
+      },
+      {
+       "source": "sposc_u.out_geometry",
+       "target": "spc2_u.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc2_u.radius"
+      },
+      {
+       "source": "spc2_u.out_volume",
+       "target": "spc3_u.volume"
+      },
+      {
+       "source": "sposc_u.out_geometry",
+       "target": "spc3_u.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc3_u.radius"
+      },
+      {
+       "source": "spc3_u.out_volume",
+       "target": "spc4_u.volume"
+      },
+      {
+       "source": "sposc_u.out_geometry",
+       "target": "spc4_u.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc4_u.radius"
+      },
+      {
+       "source": "spc4_u.out_volume",
+       "target": "spc5_u.volume"
+      },
+      {
+       "source": "sposc_u.out_geometry",
+       "target": "spc5_u.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc5_u.radius"
+      },
+      {
+       "source": "spc5_u.out_volume",
+       "target": "smc_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "smc_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "smc_u.default"
+      },
+      {
+       "source": "smc_u.sampled_data",
+       "target": "step.u2_mass"
+      },
+      {
+       "source": "spc5_u.out_volume",
+       "target": "soc_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "soc_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "soc_u.default"
+      },
+      {
+       "source": "soc_u.sampled_data",
+       "target": "step.u2_mom"
+      },
+      {
+       "source": "spc5_u.out_volume",
+       "target": "sqc_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "sqc_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sqc_u.default"
+      },
+      {
+       "source": "sqc_u.sampled_data",
+       "target": "step.u2_phase"
+      },
+      {
+       "source": "spc5_u.out_volume",
+       "target": "swtc_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "swtc_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swtc_u.default"
+      },
+      {
+       "source": "swtc_u.sampled_data",
+       "target": "step.u2_wt"
+      },
+      {
+       "source": "spc5_u.out_volume",
+       "target": "swsc_u.volume"
+      },
+      {
+       "source": ".probes_u",
+       "target": "swsc_u.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swsc_u.default"
+      },
+      {
+       "source": "swsc_u.sampled_data",
+       "target": "step.u2_ws"
+      },
+      {
+       "source": "sp4_v.out_volume",
+       "target": "sp5_v.volume"
+      },
+      {
+       "source": "spos_v.out_geometry",
+       "target": "sp5_v.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp5_v.radius"
+      },
+      {
+       "source": "sp5_v.out_volume",
+       "target": "sws_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "sws_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sws_v.default"
+      },
+      {
+       "source": "sws_v.sampled_data",
+       "target": "step.v_ws"
+      },
+      {
+       "source": "cull_c.out_geometry",
+       "target": "sposc_v.geometry"
+      },
+      {
+       "source": "add_v.output",
+       "target": "sposc_v.data"
+      },
+      {
+       "source": "sp5_v.out_volume",
+       "target": "spc1_v.volume"
+      },
+      {
+       "source": "sposc_v.out_geometry",
+       "target": "spc1_v.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc1_v.radius"
+      },
+      {
+       "source": "spc1_v.out_volume",
+       "target": "spc2_v.volume"
+      },
+      {
+       "source": "sposc_v.out_geometry",
+       "target": "spc2_v.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc2_v.radius"
+      },
+      {
+       "source": "spc2_v.out_volume",
+       "target": "spc3_v.volume"
+      },
+      {
+       "source": "sposc_v.out_geometry",
+       "target": "spc3_v.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc3_v.radius"
+      },
+      {
+       "source": "spc3_v.out_volume",
+       "target": "spc4_v.volume"
+      },
+      {
+       "source": "sposc_v.out_geometry",
+       "target": "spc4_v.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc4_v.radius"
+      },
+      {
+       "source": "spc4_v.out_volume",
+       "target": "spc5_v.volume"
+      },
+      {
+       "source": "sposc_v.out_geometry",
+       "target": "spc5_v.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc5_v.radius"
+      },
+      {
+       "source": "spc5_v.out_volume",
+       "target": "smc_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "smc_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "smc_v.default"
+      },
+      {
+       "source": "smc_v.sampled_data",
+       "target": "step.v2_mass"
+      },
+      {
+       "source": "spc5_v.out_volume",
+       "target": "soc_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "soc_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "soc_v.default"
+      },
+      {
+       "source": "soc_v.sampled_data",
+       "target": "step.v2_mom"
+      },
+      {
+       "source": "spc5_v.out_volume",
+       "target": "sqc_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "sqc_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sqc_v.default"
+      },
+      {
+       "source": "sqc_v.sampled_data",
+       "target": "step.v2_phase"
+      },
+      {
+       "source": "spc5_v.out_volume",
+       "target": "swtc_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "swtc_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swtc_v.default"
+      },
+      {
+       "source": "swtc_v.sampled_data",
+       "target": "step.v2_wt"
+      },
+      {
+       "source": "spc5_v.out_volume",
+       "target": "swsc_v.volume"
+      },
+      {
+       "source": ".probes_v",
+       "target": "swsc_v.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swsc_v.default"
+      },
+      {
+       "source": "swsc_v.sampled_data",
+       "target": "step.v2_ws"
+      },
+      {
+       "source": "sp4_w.out_volume",
+       "target": "sp5_w.volume"
+      },
+      {
+       "source": "spos_w.out_geometry",
+       "target": "sp5_w.points"
+      },
+      {
+       "source": ".radius",
+       "target": "sp5_w.radius"
+      },
+      {
+       "source": "sp5_w.out_volume",
+       "target": "sws_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "sws_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sws_w.default"
+      },
+      {
+       "source": "sws_w.sampled_data",
+       "target": "step.w_ws"
+      },
+      {
+       "source": "cull_c.out_geometry",
+       "target": "sposc_w.geometry"
+      },
+      {
+       "source": "add_w.output",
+       "target": "sposc_w.data"
+      },
+      {
+       "source": "sp5_w.out_volume",
+       "target": "spc1_w.volume"
+      },
+      {
+       "source": "sposc_w.out_geometry",
+       "target": "spc1_w.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc1_w.radius"
+      },
+      {
+       "source": "spc1_w.out_volume",
+       "target": "spc2_w.volume"
+      },
+      {
+       "source": "sposc_w.out_geometry",
+       "target": "spc2_w.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc2_w.radius"
+      },
+      {
+       "source": "spc2_w.out_volume",
+       "target": "spc3_w.volume"
+      },
+      {
+       "source": "sposc_w.out_geometry",
+       "target": "spc3_w.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc3_w.radius"
+      },
+      {
+       "source": "spc3_w.out_volume",
+       "target": "spc4_w.volume"
+      },
+      {
+       "source": "sposc_w.out_geometry",
+       "target": "spc4_w.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc4_w.radius"
+      },
+      {
+       "source": "spc4_w.out_volume",
+       "target": "spc5_w.volume"
+      },
+      {
+       "source": "sposc_w.out_geometry",
+       "target": "spc5_w.points"
+      },
+      {
+       "source": ".radius_coarse",
+       "target": "spc5_w.radius"
+      },
+      {
+       "source": "spc5_w.out_volume",
+       "target": "smc_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "smc_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "smc_w.default"
+      },
+      {
+       "source": "smc_w.sampled_data",
+       "target": "step.w2_mass"
+      },
+      {
+       "source": "spc5_w.out_volume",
+       "target": "soc_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "soc_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "soc_w.default"
+      },
+      {
+       "source": "soc_w.sampled_data",
+       "target": "step.w2_mom"
+      },
+      {
+       "source": "spc5_w.out_volume",
+       "target": "sqc_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "sqc_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "sqc_w.default"
+      },
+      {
+       "source": "sqc_w.sampled_data",
+       "target": "step.w2_phase"
+      },
+      {
+       "source": "spc5_w.out_volume",
+       "target": "swtc_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "swtc_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swtc_w.default"
+      },
+      {
+       "source": "swtc_w.sampled_data",
+       "target": "step.w2_wt"
+      },
+      {
+       "source": "spc5_w.out_volume",
+       "target": "swsc_w.volume"
+      },
+      {
+       "source": ".probes_w",
+       "target": "swsc_w.positions"
+      },
+      {
+       "source": ".sample_default",
+       "target": "swsc_w.default"
+      },
+      {
+       "source": "swsc_w.sampled_data",
+       "target": "step.w2_ws"
+      },
+      {
+       "source": ".adapt",
+       "target": "step.adapt"
+      },
+      {
+       "source": ".coarse_gain",
+       "target": "step.coarse_gain"
+      },
+      {
+       "source": ".ws_epsilon",
+       "target": "step.ws_epsilon"
+      },
+      {
+       "source": "step.out_mass",
+       "target": ".mass_out2"
+      },
+      {
+       "source": ".scale_in2",
+       "target": "step.scale_in"
+      },
+      {
+       "source": "step.scale_out",
+       "target": ".scale_out2"
+      },
+      {
+       "source": "step.out_phase_state",
+       "target": ".phase_out2"
+      },
+      {
+       "source": ".obstacles_min",
+       "target": "step.obstacles_min"
+      },
+      {
+       "source": ".obstacles_max",
+       "target": "step.obstacles_max"
       }
      ],
      "values": [
@@ -1870,6 +2825,16 @@
        "value": "true"
       },
       {
+       "valueName": "w_scl.overwrite",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_scl.create_directories",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
        "valueName": "set_mz.property",
        "valueType": "string",
        "value": "voxel_mz"
@@ -2142,6 +3107,856 @@
        "valueName": "set_wt.property",
        "valueType": "string",
        "value": "voxel_wt"
+      },
+      {
+       "valueName": "one_prop.value",
+       "valueType": "float",
+       "value": "1f"
+      },
+      {
+       "valueName": "set_one.property",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "set_scl.property",
+       "valueType": "string",
+       "value": "voxel_scl"
+      },
+      {
+       "valueName": "two_v.value",
+       "valueType": "float",
+       "value": "2f"
+      },
+      {
+       "valueName": "one_v.value",
+       "valueType": "float",
+       "value": "1f"
+      },
+      {
+       "valueName": "sp5_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp5_u.properties",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sp5_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp5_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_u.add_to_denominator",
+       "valueType": "float",
+       "value": "16f"
+      },
+      {
+       "valueName": "sp5_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sws_u.property",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sws_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sposc_u.property",
+       "valueType": "string",
+       "value": "point_position"
+      },
+      {
+       "valueName": "spc1_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc1_u.properties",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "spc1_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc1_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_u.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc1_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc2_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc2_u.properties",
+       "valueType": "string",
+       "value": "voxel_mx_c"
+      },
+      {
+       "valueName": "spc2_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc2_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_u.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc2_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc3_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc3_u.properties",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "spc3_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc3_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_u.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc3_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc4_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc4_u.properties",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "spc4_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc4_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_u.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc4_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc5_u.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc5_u.properties",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "spc5_u.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc5_u.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_u.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc5_u.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_u.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "smc_u.property",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "smc_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "soc_u.property",
+       "valueType": "string",
+       "value": "voxel_mx_c"
+      },
+      {
+       "valueName": "soc_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sqc_u.property",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "sqc_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swtc_u.property",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "swtc_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swsc_u.property",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "swsc_u.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sp5_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp5_v.properties",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sp5_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp5_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_v.add_to_denominator",
+       "valueType": "float",
+       "value": "16f"
+      },
+      {
+       "valueName": "sp5_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sws_v.property",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sws_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sposc_v.property",
+       "valueType": "string",
+       "value": "point_position"
+      },
+      {
+       "valueName": "spc1_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc1_v.properties",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "spc1_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc1_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_v.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc1_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc2_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc2_v.properties",
+       "valueType": "string",
+       "value": "voxel_my_c"
+      },
+      {
+       "valueName": "spc2_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc2_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_v.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc2_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc3_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc3_v.properties",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "spc3_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc3_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_v.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc3_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc4_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc4_v.properties",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "spc4_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc4_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_v.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc4_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc5_v.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc5_v.properties",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "spc5_v.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc5_v.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_v.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc5_v.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_v.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "smc_v.property",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "smc_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "soc_v.property",
+       "valueType": "string",
+       "value": "voxel_my_c"
+      },
+      {
+       "valueName": "soc_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sqc_v.property",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "sqc_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swtc_v.property",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "swtc_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swsc_v.property",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "swsc_v.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sp5_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "sp5_w.properties",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sp5_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "sp5_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_w.add_to_denominator",
+       "valueType": "float",
+       "value": "16f"
+      },
+      {
+       "valueName": "sp5_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "sp5_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "sws_w.property",
+       "valueType": "string",
+       "value": "voxel_one"
+      },
+      {
+       "valueName": "sws_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sposc_w.property",
+       "valueType": "string",
+       "value": "point_position"
+      },
+      {
+       "valueName": "spc1_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc1_w.properties",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "spc1_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc1_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_w.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc1_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc1_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc2_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc2_w.properties",
+       "valueType": "string",
+       "value": "voxel_mz_c"
+      },
+      {
+       "valueName": "spc2_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc2_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_w.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc2_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc2_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc3_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc3_w.properties",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "spc3_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc3_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_w.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc3_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc3_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc4_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc4_w.properties",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "spc4_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc4_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_w.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc4_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc4_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "spc5_w.create_properties",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "spc5_w.properties",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "spc5_w.kernel",
+       "valueType": "Geometry::Volume::SplatKernelType",
+       "value": "kLinearKernel"
+      },
+      {
+       "valueName": "spc5_w.add_to_weights",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_w.add_to_denominator",
+       "valueType": "float",
+       "value": "0.000001f"
+      },
+      {
+       "valueName": "spc5_w.smoothing",
+       "valueType": "float",
+       "value": "0f"
+      },
+      {
+       "valueName": "spc5_w.coarsest_depth",
+       "valueType": "int",
+       "value": "0"
+      },
+      {
+       "valueName": "smc_w.property",
+       "valueType": "string",
+       "value": "voxel_m_c"
+      },
+      {
+       "valueName": "smc_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "soc_w.property",
+       "valueType": "string",
+       "value": "voxel_mz_c"
+      },
+      {
+       "valueName": "soc_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "sqc_w.property",
+       "valueType": "string",
+       "value": "voxel_ph_c"
+      },
+      {
+       "valueName": "sqc_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swtc_w.property",
+       "valueType": "string",
+       "value": "voxel_wt_c"
+      },
+      {
+       "valueName": "swtc_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
+      },
+      {
+       "valueName": "swsc_w.property",
+       "valueType": "string",
+       "value": "voxel_one_c"
+      },
+      {
+       "valueName": "swsc_w.sampler",
+       "valueType": "Geometry::Query::SamplerType",
+       "value": "kLinear"
       }
      ],
      "iterateCompound": {
@@ -2190,6 +4005,21 @@
         "portKind": "state",
         "inputPortName": "wtph_in",
         "outputPortName": "wtph_out2"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "mass_in",
+        "outputPortName": "mass_out2"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "scale_in2",
+        "outputPortName": "scale_out2"
+       },
+       {
+        "portKind": "state",
+        "inputPortName": "phase_in2",
+        "outputPortName": "phase_out2"
        }
       ]
      }
@@ -2266,6 +4096,22 @@
     },
     {
      "nodeName": "r_wtph",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r2_scale",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r2_phase_st",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r2_obs_min",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r2_obs_max",
      "nodeType": "File::NumPy::read_NumPy"
     }
    ],
@@ -2479,6 +4325,10 @@
      "target": "loop.esc_pattern"
     },
     {
+     "source": ".scl_pattern",
+     "target": "loop.scl_pattern"
+    },
+    {
      "source": ".nz",
      "target": "loop.nz"
     },
@@ -2553,6 +4403,70 @@
     {
      "source": "r_wtph.data",
      "target": "loop.wtph_in"
+    },
+    {
+     "source": ".adapt",
+     "target": "loop.adapt"
+    },
+    {
+     "source": ".coarse_gain",
+     "target": "loop.coarse_gain"
+    },
+    {
+     "source": ".ws_epsilon",
+     "target": "loop.ws_epsilon"
+    },
+    {
+     "source": ".radius_coarse",
+     "target": "loop.radius_coarse"
+    },
+    {
+     "source": ".path_scale",
+     "target": "r2_scale.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r2_scale.type"
+    },
+    {
+     "source": "r2_scale.data",
+     "target": "loop.scale_in2"
+    },
+    {
+     "source": ".path_phase_st",
+     "target": "r2_phase_st.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r2_phase_st.type"
+    },
+    {
+     "source": "r2_phase_st.data",
+     "target": "loop.phase_in2"
+    },
+    {
+     "source": ".path_obs_min",
+     "target": "r2_obs_min.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r2_obs_min.type"
+    },
+    {
+     "source": "r2_obs_min.data",
+     "target": "loop.obstacles_min"
+    },
+    {
+     "source": ".path_obs_max",
+     "target": "r2_obs_max.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r2_obs_max.type"
+    },
+    {
+     "source": "r2_obs_max.data",
+     "target": "loop.obstacles_max"
     }
    ],
    "values": [
