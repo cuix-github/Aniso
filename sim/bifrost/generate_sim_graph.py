@@ -302,12 +302,14 @@ def build3d():
     body["compoundNodes"] += [
         {"nodeName": "w_esc", "nodeType": "File::NumPy::write_NumPy"},
         {"nodeName": "w_scl", "nodeType": "File::NumPy::write_NumPy"},
+        {"nodeName": "w_ph2", "nodeType": "File::NumPy::write_NumPy"},
+        {"nodeName": "ok_fp2", "nodeType": "Core::Type_Conversion::to_float"},
         {"nodeName": "ok_fe", "nodeType": "Core::Type_Conversion::to_float"},
         {"nodeName": "ok_fs", "nodeType": "Core::Type_Conversion::to_float"},
     ]
     for n2 in body["compoundNodes"]:
         if n2["nodeName"] == "ok_acc":
-            n2["multiInPortNames"] = ["s", "p", "q", "e", "r"]
+            n2["multiInPortNames"] = ["s", "p", "q", "e", "r", "t"]
     conns += [
         {"source": "step.out_escaped", "target": "w_esc.data"},
         {"source": ".esc_pattern", "target": "w_esc.file_path"},
@@ -319,12 +321,19 @@ def build3d():
         {"source": "ok_fe.float", "target": "ok_acc.first.e"},
         {"source": "w_scl.success", "target": "ok_fs.from"},
         {"source": "ok_fs.float", "target": "ok_acc.first.r"},
+        {"source": "step.out_phase_state", "target": "w_ph2.data"},
+        {"source": ".ph_pattern", "target": "w_ph2.file_path"},
+        {"source": ".current_index", "target": "w_ph2.frame"},
+        {"source": "w_ph2.success", "target": "ok_fp2.from"},
+        {"source": "ok_fp2.float", "target": "ok_acc.first.t"},
     ]
     body["values"] += [
         {"valueName": "w_esc.overwrite", "valueType": "bool", "value": "true"},
         {"valueName": "w_esc.create_directories", "valueType": "bool", "value": "true"},
         {"valueName": "w_scl.overwrite", "valueType": "bool", "value": "true"},
         {"valueName": "w_scl.create_directories", "valueType": "bool", "value": "true"},
+        {"valueName": "w_ph2.overwrite", "valueType": "bool", "value": "true"},
+        {"valueName": "w_ph2.create_directories", "valueType": "bool", "value": "true"},
     ]
     body["ports"].append(P("esc_pattern", "input", "string"))
     top["ports"].append(P("esc_pattern", "input", "string", ""))
@@ -332,6 +341,9 @@ def build3d():
     body["ports"].append(P("scl_pattern", "input", "string"))
     top["ports"].append(P("scl_pattern", "input", "string", ""))
     top["connections"].append({"source": ".scl_pattern", "target": "loop.scl_pattern"})
+    body["ports"].append(P("ph_pattern", "input", "string"))
+    top["ports"].append(P("ph_pattern", "input", "string", ""))
+    top["connections"].append({"source": ".ph_pattern", "target": "loop.ph_pattern"})
 
     conns += [
         {"source": "set_my.out_geometry", "target": "set_mz.geometry"},

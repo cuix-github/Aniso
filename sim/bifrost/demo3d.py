@@ -42,7 +42,7 @@ def lattice(ni, nj, nk):
 
 
 def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
-                 extra_ports=None, seed_fn=None):
+                 extra_ports=None, seed_fn=None, obstacles=None):
     d = os.path.join(HERE, "out", "loop3_" + tag)
     os.makedirs(d, exist_ok=True)
     pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
@@ -55,8 +55,10 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "wtph": typ.astype(np.float32),
             "scale": np.ones(len(pos), np.float32),
             "phase_st": typ.astype(np.float32),
-            "obs_min": np.array([[-100.0, -100.0, -100.0]], np.float32),
-            "obs_max": np.array([[-99.0, -99.0, -99.0]], np.float32),
+            "obs_min": (obstacles[0].astype(np.float32) if obstacles is not None and len(obstacles[0])
+                        else np.array([[-100.0, -100.0, -100.0]], np.float32)),
+            "obs_max": (obstacles[1].astype(np.float32) if obstacles is not None and len(obstacles[1])
+                        else np.array([[-99.0, -99.0, -99.0]], np.float32)),
             "probes_u": lattice(nx + 1, ny, nz), "probes_v": lattice(nx, ny + 1, nz),
             "probes_w": lattice(nx, ny, nz + 1)}
     for k, v in arrs.items():
@@ -72,7 +74,8 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             *[x for k2, v2 in (extra_ports or {}).items()
               for x in ("--set-port", k2, str(v2))],
             "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/"),
-            "--set-port", "scl_pattern", (d + "/scl.####").replace("\\", "/")]
+            "--set-port", "scl_pattern", (d + "/scl.####").replace("\\", "/"),
+            "--set-port", "ph_pattern", (d + "/ph.####").replace("\\", "/")]
     for k in arrs:
         args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)

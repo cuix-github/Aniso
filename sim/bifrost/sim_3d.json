@@ -222,6 +222,12 @@
      "portDefault": ""
     },
     {
+     "portName": "ph_pattern",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
      "portName": "nz",
      "portDirection": "input",
      "portType": "int",
@@ -526,6 +532,11 @@
        "portType": "string"
       },
       {
+       "portName": "ph_pattern",
+       "portDirection": "input",
+       "portType": "string"
+      },
+      {
        "portName": "momz_in",
        "portDirection": "input",
        "portType": "array<float>"
@@ -714,7 +725,8 @@
         "p",
         "q",
         "e",
-        "r"
+        "r",
+        "t"
        ]
       },
       {
@@ -860,6 +872,14 @@
       {
        "nodeName": "w_scl",
        "nodeType": "File::NumPy::write_NumPy"
+      },
+      {
+       "nodeName": "w_ph2",
+       "nodeType": "File::NumPy::write_NumPy"
+      },
+      {
+       "nodeName": "ok_fp2",
+       "nodeType": "Core::Type_Conversion::to_float"
       },
       {
        "nodeName": "ok_fe",
@@ -1578,6 +1598,26 @@
       {
        "source": "ok_fs.float",
        "target": "ok_acc.first.r"
+      },
+      {
+       "source": "step.out_phase_state",
+       "target": "w_ph2.data"
+      },
+      {
+       "source": ".ph_pattern",
+       "target": "w_ph2.file_path"
+      },
+      {
+       "source": ".current_index",
+       "target": "w_ph2.frame"
+      },
+      {
+       "source": "w_ph2.success",
+       "target": "ok_fp2.from"
+      },
+      {
+       "source": "ok_fp2.float",
+       "target": "ok_acc.first.t"
       },
       {
        "source": "set_my.out_geometry",
@@ -2831,6 +2871,16 @@
       },
       {
        "valueName": "w_scl.create_directories",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_ph2.overwrite",
+       "valueType": "bool",
+       "value": "true"
+      },
+      {
+       "valueName": "w_ph2.create_directories",
        "valueType": "bool",
        "value": "true"
       },
@@ -4327,6 +4377,10 @@
     {
      "source": ".scl_pattern",
      "target": "loop.scl_pattern"
+    },
+    {
+     "source": ".ph_pattern",
+     "target": "loop.ph_pattern"
     },
     {
      "source": ".nz",
