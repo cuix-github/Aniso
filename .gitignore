@@ -21,3 +21,4 @@ __pycache__/
 .toolchain/
 results/droplet_frames/
 results/droplet_states/
+results/p2g/frames/
