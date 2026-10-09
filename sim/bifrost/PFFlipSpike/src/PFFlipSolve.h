@@ -163,6 +163,67 @@ void step_3d(int   nx,
              float& max_speed)
     AMINO_ANNOTATE("Amino::Node");
 
+// Fused P2G (milestone 7 prep): one pass over the particles scatters every
+// channel the step node consumes - mass, per-axis momentum, phase, and the
+// ST temporal weight - onto all three MAC face grids and both size tiers,
+// directly into flat arrays, replacing the per-channel stock splat + sample
+// round-trips. The math is the reference's (pfflip2d.py _splat_group): Eq. 6
+// kernel w = max(1 - d^2/r^2, 0)^3 on a (2 ceil r + 1)^d stencil, r = 1 fine
+// and r = 2 coarse, face frames base = floor(p' + 0.5) with p' = pos minus
+// the face offset. Channel semantics stay what the stock path produced, so
+// step_3d is untouched: weighted mean with eps_mean added to the
+// denominator, and ws = K/(K + ws_epsilon) so the step node's eps-inversion
+// recovers the exact kernel sum K. st == 0 leaves the wt channels empty
+// (plain-phi path); adapt == 0 leaves ws and every tier-2 channel empty and
+// splats all particles into tier 1, matching the old graphs exactly.
+PF_FLIP_SPIKE_DECL
+void p2g_3d(int   nx,
+            int   ny,
+            int   nz,
+            int   adapt,
+            int   st,
+            float eps_mean,
+            float ws_epsilon,
+            const Amino::Array<Bifrost::Math::float3>& positions,
+            const Amino::Array<float>& scale,
+            const Amino::Array<float>& mass,
+            const Amino::Array<float>& momx,
+            const Amino::Array<float>& momy,
+            const Amino::Array<float>& momz,
+            const Amino::Array<float>& wt,
+            const Amino::Array<float>& phase,
+            Amino::Ptr<Amino::Array<float>>& u_mass,
+            Amino::Ptr<Amino::Array<float>>& u_mom,
+            Amino::Ptr<Amino::Array<float>>& u_phase,
+            Amino::Ptr<Amino::Array<float>>& u_wt,
+            Amino::Ptr<Amino::Array<float>>& u_ws,
+            Amino::Ptr<Amino::Array<float>>& v_mass,
+            Amino::Ptr<Amino::Array<float>>& v_mom,
+            Amino::Ptr<Amino::Array<float>>& v_phase,
+            Amino::Ptr<Amino::Array<float>>& v_wt,
+            Amino::Ptr<Amino::Array<float>>& v_ws,
+            Amino::Ptr<Amino::Array<float>>& w_mass,
+            Amino::Ptr<Amino::Array<float>>& w_mom,
+            Amino::Ptr<Amino::Array<float>>& w_phase,
+            Amino::Ptr<Amino::Array<float>>& w_wt,
+            Amino::Ptr<Amino::Array<float>>& w_ws,
+            Amino::Ptr<Amino::Array<float>>& u2_mass,
+            Amino::Ptr<Amino::Array<float>>& u2_mom,
+            Amino::Ptr<Amino::Array<float>>& u2_phase,
+            Amino::Ptr<Amino::Array<float>>& u2_wt,
+            Amino::Ptr<Amino::Array<float>>& u2_ws,
+            Amino::Ptr<Amino::Array<float>>& v2_mass,
+            Amino::Ptr<Amino::Array<float>>& v2_mom,
+            Amino::Ptr<Amino::Array<float>>& v2_phase,
+            Amino::Ptr<Amino::Array<float>>& v2_wt,
+            Amino::Ptr<Amino::Array<float>>& v2_ws,
+            Amino::Ptr<Amino::Array<float>>& w2_mass,
+            Amino::Ptr<Amino::Array<float>>& w2_mom,
+            Amino::Ptr<Amino::Array<float>>& w2_phase,
+            Amino::Ptr<Amino::Array<float>>& w2_wt,
+            Amino::Ptr<Amino::Array<float>>& w2_ws)
+    AMINO_ANNOTATE("Amino::Node");
+
 } // namespace Solve
 } // namespace PFFlip
 
