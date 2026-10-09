@@ -42,7 +42,7 @@ def lattice(ni, nj, nk):
 
 
 def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
-                 extra_ports=None, seed_fn=None, obstacles=None):
+                 extra_ports=None, seed_fn=None, obstacles=None, fused=False):
     d = os.path.join(HERE, "out", "loop3_" + tag)
     os.makedirs(d, exist_ok=True)
     pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
@@ -63,7 +63,7 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "probes_w": lattice(nx, ny, nz + 1)}
     for k, v in arrs.items():
         np.save(os.path.join(d, k + ".npy"), v)
-    args = [os.path.join(HERE, "run_sim_3d.bat"),
+    args = [os.path.join(HERE, "run_sim_3d_fused.bat" if fused else "run_sim_3d.bat"),
             "--set-port", "nx", str(nx), "--set-port", "ny", str(ny),
             "--set-port", "nz", str(nz), "--set-port", "dt", str(dt),
             "--set-port", "substeps", str(substeps), "--set-port", "preconditioner", "1",
