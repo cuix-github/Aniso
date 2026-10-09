@@ -1,6 +1,9 @@
 #include "PFFlipSolve.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <random>
 #include <cmath>
 #include <vector>
@@ -270,6 +273,23 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     const double dt = dt_in;
     const size_t np = positions.size();
 
+    // PFFLIP_PROFILE=1 prints per-phase wall times to stderr (spike 1); the
+    // phase boundaries are the ---- section markers below.
+    static const bool prof = []() {
+        const char* e = std::getenv("PFFLIP_PROFILE");
+        return e && e[0] == '1';
+    }();
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point tMark = Clock::now();
+    const Clock::time_point tBegin = tMark;
+    double msAsm = 0.0, msSolve = 0.0, msCorr = 0.0, msPart = 0.0;
+    auto lap = [&](double& acc) {
+        if (!prof) return;
+        const Clock::time_point now = Clock::now();
+        acc = std::chrono::duration<double, std::milli>(now - tMark).count();
+        tMark = now;
+    };
+
     Level L;
     L.nx = NX; L.ny = NY; L.nz = NZ; L.inv_h2 = 1.0;
     const size_t nu = static_cast<size_t>(NX + 1) * NY * NZ;
@@ -409,6 +429,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                                        (v[L.iv(i, j + 1, k)] - v[L.iv(i, j, k)]) +
                                        (w[L.iw(i, j, k + 1)] - w[L.iw(i, j, k)])) / dt;
 
+    lap(msAsm);
     // ---- flexible PCG with Jacobi (0) or multigrid V-cycle (1) preconditioner.
     std::vector<Level> ls;
     Vec tmp(L.nc());
@@ -457,6 +478,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         if (rz == 0.0) break;
     }
 
+    lap(msSolve);
     // ---- velocity correction on interior faces, then walls.
     for (int i = 1; i < NX; ++i)
         for (int j = 0; j < NY; ++j)
@@ -484,6 +506,7 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                     (v[F.iv(i, j + 1, k)] - v[F.iv(i, j, k)]) +
                     (w[F.iw(i, j, k + 1)] - w[F.iw(i, j, k)])));
 
+    lap(msCorr);
     // ---- particle machinery. Sizes: with adapt on, particles carry a scale
     // (1 fine, 2 coarse); masses scale as scale^d (d = 2 flat, 3 otherwise) with a
     // calibrated coarse gain; the FLIP blend uses (1-alpha)/scale^2; deep-air fine
@@ -949,6 +972,17 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     final_residual = static_cast<float>(std::sqrt(rr2) / r0);
     max_divergence_after = static_cast<float>(maxDiv);
     max_speed = static_cast<float>(maxSpeed);
+    lap(msPart);
+    if (prof) {
+        std::fprintf(stderr,
+                     "PFPROF step=%d grid=%dx%dx%d np=%zu iters=%d asm=%.1f "
+                     "solve=%.1f corr=%.1f part=%.1f total=%.1f\n",
+                     step_index, NX, NY, NZ, np, it, msAsm, msSolve, msCorr,
+                     msPart,
+                     std::chrono::duration<double, std::milli>(Clock::now() -
+                                                               tBegin).count());
+        std::fflush(stderr);
+    }
 }
 
 } // namespace Solve
