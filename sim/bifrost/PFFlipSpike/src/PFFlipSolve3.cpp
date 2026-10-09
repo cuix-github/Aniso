@@ -500,18 +500,22 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     // count splats (Eq. 6 kernel) at given positions; value = scale^d per particle.
     auto countSplat = [&](const std::vector<double>& qx, const std::vector<double>& qy,
                           const std::vector<double>& qz, const std::vector<char>& isLiq,
-                          const std::vector<double>& scl, Vec cntU[2], Vec cntV[2]) {
+                          const std::vector<double>& scl, Vec cntU[2], Vec cntV[2],
+                          Vec cntW[2]) {
         const size_t n = qx.size();
         for (size_t pi = 0; pi < n; ++pi) {
             const int ph = isLiq[pi] ? 1 : 0;
             const double val = std::pow(scl[pi], dExp);
-            for (int grid = 0; grid < 2; ++grid) {
+            const int ngrids = NZ == 1 ? 2 : 3;
+            for (int grid = 0; grid < ngrids; ++grid) {
                 const double ox = grid == 0 ? 0.0 : 0.5;
-                const double oy = grid == 0 ? 0.5 : 0.0;
+                const double oy = grid == 1 ? 0.0 : 0.5;
+                const double oz = grid == 2 ? 0.0 : 0.5;
                 const int gx = grid == 0 ? NX + 1 : NX;
-                const int gy = grid == 0 ? NY : NY + 1;
-                Vec* cnt = grid == 0 ? cntU : cntV;
-                const double ax = qx[pi] - ox, ay = qy[pi] - oy, az = qz[pi] - 0.5;
+                const int gy = grid == 1 ? NY + 1 : NY;
+                const int gzd = grid == 2 ? NZ + 1 : NZ;
+                Vec* cnt = grid == 0 ? cntU : (grid == 1 ? cntV : cntW);
+                const double ax = qx[pi] - ox, ay = qy[pi] - oy, az = qz[pi] - oz;
                 const int bx = static_cast<int>(std::floor(ax + 0.5));
                 const int by = static_cast<int>(std::floor(ay + 0.5));
                 const int bz = static_cast<int>(std::floor(az + 0.5));
@@ -520,21 +524,25 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                     for (int dj = -1; dj <= 1; ++dj)
                         for (int dk = -1; dk <= 1; ++dk) {
                             const int i = bx + di, j = by + dj, k = bz + dk;
-                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= NZ)
+                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= gzd)
                                 continue;
                             const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
                                               (fz - dk) * (fz - dk);
                             const double wgt = std::max(1.0 - d2, 0.0);
                             if (wgt > 0.0)
-                                cnt[ph][(static_cast<size_t>(i) * gy + j) * NZ + k] +=
+                                cnt[ph][(static_cast<size_t>(i) * gy + j) * gzd + k] +=
                                     wgt * wgt * wgt * val;
                         }
             }
         }
     };
-    auto sampleCnt = [&](const Vec& cu, const Vec& cv, double px, double py, double pz) {
-        return 0.5 * (sampleGrid(cu, NX + 1, NY, NZ, 0.0, 0.5, 0.5, px, py, pz) +
-                      sampleGrid(cv, NX, NY + 1, NZ, 0.5, 0.0, 0.5, px, py, pz));
+    auto sampleCnt = [&](const Vec& cu, const Vec& cv, const Vec& cw,
+                         double px, double py, double pz) {
+        const double su2 = sampleGrid(cu, NX + 1, NY, NZ, 0.0, 0.5, 0.5, px, py, pz);
+        const double sv2 = sampleGrid(cv, NX, NY + 1, NZ, 0.5, 0.0, 0.5, px, py, pz);
+        if (NZ == 1) return 0.5 * (su2 + sv2);
+        const double sw2 = sampleGrid(cw, NX, NY, NZ + 1, 0.5, 0.5, 0.0, px, py, pz);
+        return (su2 + sv2 + sw2) / 3.0;
     };
 
     std::vector<char> escFlag(np, 0);
@@ -548,12 +556,13 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         }
         Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
         Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
-        countSplat(qx, qy, qz, isLiq, scl, cntU, cntV);
+        Vec cntW[2] = {Vec(nw, 0.0), Vec(nw, 0.0)};
+        countSplat(qx, qy, qz, isLiq, scl, cntU, cntV, cntW);
         if (escape != 0) {
             const double thresh = (1.0 - esc_phi) * rho0_face;
             for (size_t pi = 0; pi < np; ++pi) {
                 const int other = isLiq[pi] ? 0 : 1;
-                const double frac = sampleCnt(cntU[other], cntV[other],
+                const double frac = sampleCnt(cntU[other], cntV[other], cntW[other],
                                               qx[pi], qy[pi], qz[pi]);
                 escFlag[pi] = frac > thresh ? 1 : 0;
             }
@@ -703,10 +712,11 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         for (size_t i = 0; i < Px.size(); ++i) isLiq[i] = Ph01[i] >= 0.5 ? 1 : 0;
         Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
         Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
-        countSplat(Px, Py, Pz, isLiq, Scl, cntU, cntV);
+        Vec cntW[2] = {Vec(nw, 0.0), Vec(nw, 0.0)};
+        countSplat(Px, Py, Pz, isLiq, Scl, cntU, cntV, cntW);
         std::vector<double> lf(Px.size());
         for (size_t i = 0; i < Px.size(); ++i)
-            lf[i] = sampleCnt(cntU[1], cntV[1], Px[i], Py[i], Pz[i]) /
+            lf[i] = sampleCnt(cntU[1], cntV[1], cntW[1], Px[i], Py[i], Pz[i]) /
                     std::max(static_cast<double>(rho0_face), 1e-9);
 
         const int groupN = flat ? 4 : 8;
