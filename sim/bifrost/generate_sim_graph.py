@@ -717,6 +717,64 @@ def build3d():
     return g
 
 
+def build3d_fused():
+    """The 3D loop with the splat layer fused into PFFlip::Solve::p2g_3d: the
+    thirty stock splat + thirty sample_volume invocations, the point-property
+    chain, the shifted-position machinery, and the tier culls are replaced by
+    one node that scatters every channel in a single pass. step_3d and every
+    outer port are untouched; the radius and kernel ports become inert (the
+    fused kernel is the reference's Eq. 6, r = 1 fine / r = 2 coarse)."""
+    g = build3d()
+    top = g["compounds"][0]
+    body = top["compounds"][0]
+
+    kill_exact = {"cp", "zero", "one_prop", "two_v", "one_v"}
+    kill_prefix = ("sp1_", "sp2_", "sp3_", "sp4_", "sp5_", "spc", "sm_", "so_",
+                   "sq_", "sw_", "sws", "smc_", "soc_", "sqc_", "swtc_",
+                   "swsc_", "p2v_", "spos", "off_", "add_u", "add_v", "add_w",
+                   "set_m", "set_ph", "set_wt", "set_one", "set_scl", "cull_",
+                   "eq_")
+
+    def killed(name):
+        return name in kill_exact or name.startswith(kill_prefix)
+
+    before = len(body["compoundNodes"])
+    body["compoundNodes"] = [n for n in body["compoundNodes"]
+                             if not killed(n["nodeName"])]
+    removed = before - len(body["compoundNodes"])
+    assert removed == 92, f"expected to remove 92 splat-layer nodes, got {removed}"
+
+    def node_of(endpoint):
+        return endpoint.split(".")[0] if not endpoint.startswith(".") else ""
+
+    chan_suffix = ("_mass", "_mom", "_phase", "_wt", "_ws")
+    chan_targets = {"step." + g2 + s for g2 in ("u", "v", "w", "u2", "v2", "w2")
+                    for s in chan_suffix}
+    body["connections"] = [
+        c for c in body["connections"]
+        if not (killed(node_of(c["source"])) or killed(node_of(c["target"]))
+                or c["target"] in chan_targets)]
+    body["values"] = [v for v in body["values"]
+                      if not killed(v["valueName"].split(".")[0])]
+
+    body["compoundNodes"].append({"nodeName": "p2g",
+                                  "nodeType": "PFFlip::Solve::p2g_3d"})
+    chans = [g2 + s for g2 in ("u", "v", "w", "u2", "v2", "w2")
+             for s in chan_suffix]
+    body["connections"] += (
+        [{"source": "." + s, "target": "p2g." + d} for s, d in
+         (("nx", "nx"), ("ny", "ny"), ("nz", "nz"), ("adapt", "adapt"),
+          ("st", "st"), ("add_to_denominator", "eps_mean"),
+          ("ws_epsilon", "ws_epsilon"), ("positions_in", "positions"),
+          ("scale_in2", "scale"), ("mass_in", "mass"), ("momx_in", "momx"),
+          ("momy_in", "momy"), ("momz_in", "momz"), ("wt_in", "wt"),
+          ("wtph_in", "phase"))] +
+        [{"source": "p2g." + c, "target": "step." + c} for c in chans])
+
+    top["name"] = "User::PFFlip::sim_3d_fused"
+    return g
+
+
 def build_p2g_test():
     """Wrapper graph for validating PFFlip::Solve::p2g_3d standalone: NumPy
     arrays in, the fused splat, the thirty channel arrays out as NumPy files.
@@ -773,6 +831,8 @@ if __name__ == "__main__":
         json.dump(build(), f, indent=1)
     with open(os.path.join(here, "sim_3d.json"), "w") as f:
         json.dump(build3d(), f, indent=1)
+    with open(os.path.join(here, "sim_3d_fused.json"), "w") as f:
+        json.dump(build3d_fused(), f, indent=1)
     with open(os.path.join(here, "p2g_test.json"), "w") as f:
         json.dump(build_p2g_test(), f, indent=1)
-    print("wrote sim_2d.json, sim_3d.json and p2g_test.json")
+    print("wrote sim_2d.json, sim_3d.json, sim_3d_fused.json and p2g_test.json")

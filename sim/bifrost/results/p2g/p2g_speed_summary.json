@@ -1,0 +1,29 @@
+{
+ "scene": "160x80 wet-bed bore + 2 pillars, production config",
+ "substeps": 167,
+ "sim_seconds": 20.04,
+ "walls": {
+  "stock": {
+   "short_s": 11.4,
+   "full_s": 68.6,
+   "per_substep_s": 0.389
+  },
+  "fused": {
+   "short_s": 5.0,
+   "full_s": 11.5,
+   "per_substep_s": 0.044
+  }
+ },
+ "centroid_drift_cells": 2.282,
+ "video": "p2g_speed_sidebyside.mp4",
+ "finale": {
+  "grid": "256x64x128",
+  "particles": 6801053,
+  "stock_per_substep_s": 96.4,
+  "stock4_sanity_s": 382.3,
+  "fused4_s": 41.7,
+  "fused12_s": 123.5,
+  "fused_per_substep_s": 10.22,
+  "speedup": 9.4
+ }
+}
