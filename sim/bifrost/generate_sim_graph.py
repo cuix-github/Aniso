@@ -717,10 +717,62 @@ def build3d():
     return g
 
 
+def build_p2g_test():
+    """Wrapper graph for validating PFFlip::Solve::p2g_3d standalone: NumPy
+    arrays in, the fused splat, the thirty channel arrays out as NumPy files.
+    Driven by validate_p2g.py through run_p2g_test.bat."""
+    in_arr = [("positions", "t_pos"), ("scale", "t_flt"), ("mass", "t_flt"),
+              ("momx", "t_flt"), ("momy", "t_flt"), ("momz", "t_flt"),
+              ("wt", "t_flt"), ("phase", "t_flt")]
+    chans = [g2 + s for g2 in ("u", "v", "w", "u2", "v2", "w2")
+             for s in ("_mass", "_mom", "_phase", "_wt", "_ws")]
+    nodes = [{"nodeName": "t_pos", "valueType": "array<Math::float3>"},
+             {"nodeName": "t_flt", "valueType": "array<float>"},
+             {"nodeName": "p2g", "nodeType": "PFFlip::Solve::p2g_3d"}]
+    scalars = (("nx", "int", "2"), ("ny", "int", "2"), ("nz", "int", "1"),
+               ("adapt", "int", "0"), ("st", "int", "0"),
+               ("eps_mean", "float", "0.000001f"), ("ws_epsilon", "float", "16f"))
+    ports = [P(n, "input", t, d) for n, t, d in scalars]
+    conns = [{"source": "." + n, "target": "p2g." + n} for n, _, _ in scalars]
+    values = [{"valueName": "t_pos.value", "valueType": "array<Math::float3>",
+               "value": [{"x": "0f", "y": "0f", "z": "0f"}]},
+              {"valueName": "t_flt.value", "valueType": "array<float>",
+               "value": ["0f"]}]
+    for n, rt in in_arr:
+        nodes.append({"nodeName": "r_" + n, "nodeType": "File::NumPy::read_NumPy"})
+        ports.append(P("path_" + n, "input", "string", ""))
+        conns += [
+            {"source": ".path_" + n, "target": "r_" + n + ".file_path"},
+            {"source": rt + ".output", "target": "r_" + n + ".type"},
+            {"source": "r_" + n + ".data", "target": "p2g." + n},
+        ]
+    for c in chans:
+        nodes.append({"nodeName": "w_" + c, "nodeType": "File::NumPy::write_NumPy"})
+        ports += [P("path_" + c, "input", "string", ""),
+                  P("ok_" + c, "output", "bool")]
+        conns += [
+            {"source": "p2g." + c, "target": "w_" + c + ".data"},
+            {"source": ".path_" + c, "target": "w_" + c + ".file_path"},
+            {"source": "w_" + c + ".success", "target": ".ok_" + c},
+        ]
+        values += [{"valueName": "w_" + c + ".overwrite", "valueType": "bool",
+                    "value": "true"},
+                   {"valueName": "w_" + c + ".create_directories",
+                    "valueType": "bool", "value": "true"}]
+    return {"header": {"metadata": [{"metaName": "adskFileFormatVersion",
+                                     "metaValue": "100L"}]},
+            "namespaces": [], "types": [],
+            "compounds": [{"name": "User::PFFlip::p2g_test", "ports": ports,
+                           "compoundNodes": nodes, "connections": conns,
+                           "values": values}]}
+
+
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(here, "sim_2d.json"), "w") as f:
         json.dump(build(), f, indent=1)
     with open(os.path.join(here, "sim_3d.json"), "w") as f:
         json.dump(build3d(), f, indent=1)
-    print("wrote sim_2d.json and sim_3d.json")
+    with open(os.path.join(here, "p2g_test.json"), "w") as f:
+        json.dump(build_p2g_test(), f, indent=1)
+    print("wrote sim_2d.json, sim_3d.json and p2g_test.json")

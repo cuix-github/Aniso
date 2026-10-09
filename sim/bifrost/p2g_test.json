@@ -1,0 +1,1411 @@
+{
+ "header": {
+  "metadata": [
+   {
+    "metaName": "adskFileFormatVersion",
+    "metaValue": "100L"
+   }
+  ]
+ },
+ "namespaces": [],
+ "types": [],
+ "compounds": [
+  {
+   "name": "User::PFFlip::p2g_test",
+   "ports": [
+    {
+     "portName": "nx",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "2"
+    },
+    {
+     "portName": "ny",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "2"
+    },
+    {
+     "portName": "nz",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "1"
+    },
+    {
+     "portName": "adapt",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "0"
+    },
+    {
+     "portName": "st",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "0"
+    },
+    {
+     "portName": "eps_mean",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "0.000001f"
+    },
+    {
+     "portName": "ws_epsilon",
+     "portDirection": "input",
+     "portType": "float",
+     "portDefault": "16f"
+    },
+    {
+     "portName": "path_positions",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_scale",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_momx",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_momy",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_momz",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "path_u_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u2_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u2_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u2_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u2_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u2_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u2_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u2_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u2_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_u2_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_u2_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v2_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v2_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v2_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v2_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v2_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v2_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v2_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v2_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_v2_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_v2_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w2_mass",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w2_mass",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w2_mom",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w2_mom",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w2_phase",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w2_phase",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w2_wt",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w2_wt",
+     "portDirection": "output",
+     "portType": "bool"
+    },
+    {
+     "portName": "path_w2_ws",
+     "portDirection": "input",
+     "portType": "string",
+     "portDefault": ""
+    },
+    {
+     "portName": "ok_w2_ws",
+     "portDirection": "output",
+     "portType": "bool"
+    }
+   ],
+   "compoundNodes": [
+    {
+     "nodeName": "t_pos",
+     "valueType": "array<Math::float3>"
+    },
+    {
+     "nodeName": "t_flt",
+     "valueType": "array<float>"
+    },
+    {
+     "nodeName": "p2g",
+     "nodeType": "PFFlip::Solve::p2g_3d"
+    },
+    {
+     "nodeName": "r_positions",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_scale",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_mass",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_momx",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_momy",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_momz",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_wt",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "r_phase",
+     "nodeType": "File::NumPy::read_NumPy"
+    },
+    {
+     "nodeName": "w_u_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u2_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u2_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u2_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u2_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_u2_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v2_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v2_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v2_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v2_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_v2_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w2_mass",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w2_mom",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w2_phase",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w2_wt",
+     "nodeType": "File::NumPy::write_NumPy"
+    },
+    {
+     "nodeName": "w_w2_ws",
+     "nodeType": "File::NumPy::write_NumPy"
+    }
+   ],
+   "connections": [
+    {
+     "source": ".nx",
+     "target": "p2g.nx"
+    },
+    {
+     "source": ".ny",
+     "target": "p2g.ny"
+    },
+    {
+     "source": ".nz",
+     "target": "p2g.nz"
+    },
+    {
+     "source": ".adapt",
+     "target": "p2g.adapt"
+    },
+    {
+     "source": ".st",
+     "target": "p2g.st"
+    },
+    {
+     "source": ".eps_mean",
+     "target": "p2g.eps_mean"
+    },
+    {
+     "source": ".ws_epsilon",
+     "target": "p2g.ws_epsilon"
+    },
+    {
+     "source": ".path_positions",
+     "target": "r_positions.file_path"
+    },
+    {
+     "source": "t_pos.output",
+     "target": "r_positions.type"
+    },
+    {
+     "source": "r_positions.data",
+     "target": "p2g.positions"
+    },
+    {
+     "source": ".path_scale",
+     "target": "r_scale.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_scale.type"
+    },
+    {
+     "source": "r_scale.data",
+     "target": "p2g.scale"
+    },
+    {
+     "source": ".path_mass",
+     "target": "r_mass.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_mass.type"
+    },
+    {
+     "source": "r_mass.data",
+     "target": "p2g.mass"
+    },
+    {
+     "source": ".path_momx",
+     "target": "r_momx.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_momx.type"
+    },
+    {
+     "source": "r_momx.data",
+     "target": "p2g.momx"
+    },
+    {
+     "source": ".path_momy",
+     "target": "r_momy.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_momy.type"
+    },
+    {
+     "source": "r_momy.data",
+     "target": "p2g.momy"
+    },
+    {
+     "source": ".path_momz",
+     "target": "r_momz.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_momz.type"
+    },
+    {
+     "source": "r_momz.data",
+     "target": "p2g.momz"
+    },
+    {
+     "source": ".path_wt",
+     "target": "r_wt.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_wt.type"
+    },
+    {
+     "source": "r_wt.data",
+     "target": "p2g.wt"
+    },
+    {
+     "source": ".path_phase",
+     "target": "r_phase.file_path"
+    },
+    {
+     "source": "t_flt.output",
+     "target": "r_phase.type"
+    },
+    {
+     "source": "r_phase.data",
+     "target": "p2g.phase"
+    },
+    {
+     "source": "p2g.u_mass",
+     "target": "w_u_mass.data"
+    },
+    {
+     "source": ".path_u_mass",
+     "target": "w_u_mass.file_path"
+    },
+    {
+     "source": "w_u_mass.success",
+     "target": ".ok_u_mass"
+    },
+    {
+     "source": "p2g.u_mom",
+     "target": "w_u_mom.data"
+    },
+    {
+     "source": ".path_u_mom",
+     "target": "w_u_mom.file_path"
+    },
+    {
+     "source": "w_u_mom.success",
+     "target": ".ok_u_mom"
+    },
+    {
+     "source": "p2g.u_phase",
+     "target": "w_u_phase.data"
+    },
+    {
+     "source": ".path_u_phase",
+     "target": "w_u_phase.file_path"
+    },
+    {
+     "source": "w_u_phase.success",
+     "target": ".ok_u_phase"
+    },
+    {
+     "source": "p2g.u_wt",
+     "target": "w_u_wt.data"
+    },
+    {
+     "source": ".path_u_wt",
+     "target": "w_u_wt.file_path"
+    },
+    {
+     "source": "w_u_wt.success",
+     "target": ".ok_u_wt"
+    },
+    {
+     "source": "p2g.u_ws",
+     "target": "w_u_ws.data"
+    },
+    {
+     "source": ".path_u_ws",
+     "target": "w_u_ws.file_path"
+    },
+    {
+     "source": "w_u_ws.success",
+     "target": ".ok_u_ws"
+    },
+    {
+     "source": "p2g.v_mass",
+     "target": "w_v_mass.data"
+    },
+    {
+     "source": ".path_v_mass",
+     "target": "w_v_mass.file_path"
+    },
+    {
+     "source": "w_v_mass.success",
+     "target": ".ok_v_mass"
+    },
+    {
+     "source": "p2g.v_mom",
+     "target": "w_v_mom.data"
+    },
+    {
+     "source": ".path_v_mom",
+     "target": "w_v_mom.file_path"
+    },
+    {
+     "source": "w_v_mom.success",
+     "target": ".ok_v_mom"
+    },
+    {
+     "source": "p2g.v_phase",
+     "target": "w_v_phase.data"
+    },
+    {
+     "source": ".path_v_phase",
+     "target": "w_v_phase.file_path"
+    },
+    {
+     "source": "w_v_phase.success",
+     "target": ".ok_v_phase"
+    },
+    {
+     "source": "p2g.v_wt",
+     "target": "w_v_wt.data"
+    },
+    {
+     "source": ".path_v_wt",
+     "target": "w_v_wt.file_path"
+    },
+    {
+     "source": "w_v_wt.success",
+     "target": ".ok_v_wt"
+    },
+    {
+     "source": "p2g.v_ws",
+     "target": "w_v_ws.data"
+    },
+    {
+     "source": ".path_v_ws",
+     "target": "w_v_ws.file_path"
+    },
+    {
+     "source": "w_v_ws.success",
+     "target": ".ok_v_ws"
+    },
+    {
+     "source": "p2g.w_mass",
+     "target": "w_w_mass.data"
+    },
+    {
+     "source": ".path_w_mass",
+     "target": "w_w_mass.file_path"
+    },
+    {
+     "source": "w_w_mass.success",
+     "target": ".ok_w_mass"
+    },
+    {
+     "source": "p2g.w_mom",
+     "target": "w_w_mom.data"
+    },
+    {
+     "source": ".path_w_mom",
+     "target": "w_w_mom.file_path"
+    },
+    {
+     "source": "w_w_mom.success",
+     "target": ".ok_w_mom"
+    },
+    {
+     "source": "p2g.w_phase",
+     "target": "w_w_phase.data"
+    },
+    {
+     "source": ".path_w_phase",
+     "target": "w_w_phase.file_path"
+    },
+    {
+     "source": "w_w_phase.success",
+     "target": ".ok_w_phase"
+    },
+    {
+     "source": "p2g.w_wt",
+     "target": "w_w_wt.data"
+    },
+    {
+     "source": ".path_w_wt",
+     "target": "w_w_wt.file_path"
+    },
+    {
+     "source": "w_w_wt.success",
+     "target": ".ok_w_wt"
+    },
+    {
+     "source": "p2g.w_ws",
+     "target": "w_w_ws.data"
+    },
+    {
+     "source": ".path_w_ws",
+     "target": "w_w_ws.file_path"
+    },
+    {
+     "source": "w_w_ws.success",
+     "target": ".ok_w_ws"
+    },
+    {
+     "source": "p2g.u2_mass",
+     "target": "w_u2_mass.data"
+    },
+    {
+     "source": ".path_u2_mass",
+     "target": "w_u2_mass.file_path"
+    },
+    {
+     "source": "w_u2_mass.success",
+     "target": ".ok_u2_mass"
+    },
+    {
+     "source": "p2g.u2_mom",
+     "target": "w_u2_mom.data"
+    },
+    {
+     "source": ".path_u2_mom",
+     "target": "w_u2_mom.file_path"
+    },
+    {
+     "source": "w_u2_mom.success",
+     "target": ".ok_u2_mom"
+    },
+    {
+     "source": "p2g.u2_phase",
+     "target": "w_u2_phase.data"
+    },
+    {
+     "source": ".path_u2_phase",
+     "target": "w_u2_phase.file_path"
+    },
+    {
+     "source": "w_u2_phase.success",
+     "target": ".ok_u2_phase"
+    },
+    {
+     "source": "p2g.u2_wt",
+     "target": "w_u2_wt.data"
+    },
+    {
+     "source": ".path_u2_wt",
+     "target": "w_u2_wt.file_path"
+    },
+    {
+     "source": "w_u2_wt.success",
+     "target": ".ok_u2_wt"
+    },
+    {
+     "source": "p2g.u2_ws",
+     "target": "w_u2_ws.data"
+    },
+    {
+     "source": ".path_u2_ws",
+     "target": "w_u2_ws.file_path"
+    },
+    {
+     "source": "w_u2_ws.success",
+     "target": ".ok_u2_ws"
+    },
+    {
+     "source": "p2g.v2_mass",
+     "target": "w_v2_mass.data"
+    },
+    {
+     "source": ".path_v2_mass",
+     "target": "w_v2_mass.file_path"
+    },
+    {
+     "source": "w_v2_mass.success",
+     "target": ".ok_v2_mass"
+    },
+    {
+     "source": "p2g.v2_mom",
+     "target": "w_v2_mom.data"
+    },
+    {
+     "source": ".path_v2_mom",
+     "target": "w_v2_mom.file_path"
+    },
+    {
+     "source": "w_v2_mom.success",
+     "target": ".ok_v2_mom"
+    },
+    {
+     "source": "p2g.v2_phase",
+     "target": "w_v2_phase.data"
+    },
+    {
+     "source": ".path_v2_phase",
+     "target": "w_v2_phase.file_path"
+    },
+    {
+     "source": "w_v2_phase.success",
+     "target": ".ok_v2_phase"
+    },
+    {
+     "source": "p2g.v2_wt",
+     "target": "w_v2_wt.data"
+    },
+    {
+     "source": ".path_v2_wt",
+     "target": "w_v2_wt.file_path"
+    },
+    {
+     "source": "w_v2_wt.success",
+     "target": ".ok_v2_wt"
+    },
+    {
+     "source": "p2g.v2_ws",
+     "target": "w_v2_ws.data"
+    },
+    {
+     "source": ".path_v2_ws",
+     "target": "w_v2_ws.file_path"
+    },
+    {
+     "source": "w_v2_ws.success",
+     "target": ".ok_v2_ws"
+    },
+    {
+     "source": "p2g.w2_mass",
+     "target": "w_w2_mass.data"
+    },
+    {
+     "source": ".path_w2_mass",
+     "target": "w_w2_mass.file_path"
+    },
+    {
+     "source": "w_w2_mass.success",
+     "target": ".ok_w2_mass"
+    },
+    {
+     "source": "p2g.w2_mom",
+     "target": "w_w2_mom.data"
+    },
+    {
+     "source": ".path_w2_mom",
+     "target": "w_w2_mom.file_path"
+    },
+    {
+     "source": "w_w2_mom.success",
+     "target": ".ok_w2_mom"
+    },
+    {
+     "source": "p2g.w2_phase",
+     "target": "w_w2_phase.data"
+    },
+    {
+     "source": ".path_w2_phase",
+     "target": "w_w2_phase.file_path"
+    },
+    {
+     "source": "w_w2_phase.success",
+     "target": ".ok_w2_phase"
+    },
+    {
+     "source": "p2g.w2_wt",
+     "target": "w_w2_wt.data"
+    },
+    {
+     "source": ".path_w2_wt",
+     "target": "w_w2_wt.file_path"
+    },
+    {
+     "source": "w_w2_wt.success",
+     "target": ".ok_w2_wt"
+    },
+    {
+     "source": "p2g.w2_ws",
+     "target": "w_w2_ws.data"
+    },
+    {
+     "source": ".path_w2_ws",
+     "target": "w_w2_ws.file_path"
+    },
+    {
+     "source": "w_w2_ws.success",
+     "target": ".ok_w2_ws"
+    }
+   ],
+   "values": [
+    {
+     "valueName": "t_pos.value",
+     "valueType": "array<Math::float3>",
+     "value": [
+      {
+       "x": "0f",
+       "y": "0f",
+       "z": "0f"
+      }
+     ]
+    },
+    {
+     "valueName": "t_flt.value",
+     "valueType": "array<float>",
+     "value": [
+      "0f"
+     ]
+    },
+    {
+     "valueName": "w_u_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_u2_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_v2_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_mass.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_mass.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_mom.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_mom.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_phase.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_phase.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_wt.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_wt.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_ws.overwrite",
+     "valueType": "bool",
+     "value": "true"
+    },
+    {
+     "valueName": "w_w2_ws.create_directories",
+     "valueType": "bool",
+     "value": "true"
+    }
+   ]
+  }
+ ]
+}
