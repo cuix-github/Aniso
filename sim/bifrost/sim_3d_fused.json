@@ -328,6 +328,12 @@
      "portDirection": "input",
      "portType": "string",
      "portDefault": ""
+    },
+    {
+     "portName": "dump_every",
+     "portDirection": "input",
+     "portType": "int",
+     "portDefault": "1"
     }
    ],
    "compounds": [
@@ -655,6 +661,11 @@
        "portName": "obstacles_max",
        "portDirection": "input",
        "portType": "array<Math::float3>"
+      },
+      {
+       "portName": "dump_every",
+       "portDirection": "input",
+       "portType": "int"
       }
      ],
      "compounds": [],
@@ -734,6 +745,22 @@
        "nodeType": "Core::Type_Conversion::to_int"
       },
       {
+       "nodeName": "dg_pos",
+       "nodeType": "PFFlip::Solve::dump_gate"
+      },
+      {
+       "nodeName": "dg_esc",
+       "nodeType": "PFFlip::Solve::dump_gate"
+      },
+      {
+       "nodeName": "dg_scl",
+       "nodeType": "PFFlip::Solve::dump_gate"
+      },
+      {
+       "nodeName": "dg_ph",
+       "nodeType": "PFFlip::Solve::dump_gate"
+      },
+      {
        "nodeName": "p2g",
        "nodeType": "PFFlip::Solve::p2g_3d"
       }
@@ -810,10 +837,6 @@
       {
        "source": "step.out_pos_synced",
        "target": "w_pos.data"
-      },
-      {
-       "source": ".pos_pattern",
-       "target": "w_pos.file_path"
       },
       {
        "source": ".current_index",
@@ -904,20 +927,12 @@
        "target": "w_esc.data"
       },
       {
-       "source": ".esc_pattern",
-       "target": "w_esc.file_path"
-      },
-      {
        "source": ".current_index",
        "target": "w_esc.frame"
       },
       {
        "source": "step.scale_out",
        "target": "w_scl.data"
-      },
-      {
-       "source": ".scl_pattern",
-       "target": "w_scl.file_path"
       },
       {
        "source": ".current_index",
@@ -942,10 +957,6 @@
       {
        "source": "step.out_phase_state",
        "target": "w_ph2.data"
-      },
-      {
-       "source": ".ph_pattern",
-       "target": "w_ph2.file_path"
       },
       {
        "source": ".current_index",
@@ -1038,6 +1049,70 @@
       {
        "source": ".obstacles_max",
        "target": "step.obstacles_max"
+      },
+      {
+       "source": "idx_i.int",
+       "target": "dg_pos.step_index"
+      },
+      {
+       "source": ".dump_every",
+       "target": "dg_pos.every"
+      },
+      {
+       "source": ".pos_pattern",
+       "target": "dg_pos.path"
+      },
+      {
+       "source": "dg_pos.path_out",
+       "target": "w_pos.file_path"
+      },
+      {
+       "source": "idx_i.int",
+       "target": "dg_esc.step_index"
+      },
+      {
+       "source": ".dump_every",
+       "target": "dg_esc.every"
+      },
+      {
+       "source": ".esc_pattern",
+       "target": "dg_esc.path"
+      },
+      {
+       "source": "dg_esc.path_out",
+       "target": "w_esc.file_path"
+      },
+      {
+       "source": "idx_i.int",
+       "target": "dg_scl.step_index"
+      },
+      {
+       "source": ".dump_every",
+       "target": "dg_scl.every"
+      },
+      {
+       "source": ".scl_pattern",
+       "target": "dg_scl.path"
+      },
+      {
+       "source": "dg_scl.path_out",
+       "target": "w_scl.file_path"
+      },
+      {
+       "source": "idx_i.int",
+       "target": "dg_ph.step_index"
+      },
+      {
+       "source": ".dump_every",
+       "target": "dg_ph.every"
+      },
+      {
+       "source": ".ph_pattern",
+       "target": "dg_ph.path"
+      },
+      {
+       "source": "dg_ph.path_out",
+       "target": "w_ph2.file_path"
       },
       {
        "source": ".nx",
@@ -1784,6 +1859,10 @@
     {
      "source": "r2_obs_max.data",
      "target": "loop.obstacles_max"
+    },
+    {
+     "source": ".dump_every",
+     "target": "loop.dump_every"
     }
    ],
    "values": [
