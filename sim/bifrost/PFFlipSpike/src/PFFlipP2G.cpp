@@ -1,4 +1,5 @@
 #include "PFFlipSolve.h"
+#include "PFFlipScatter.h"
 
 #include <algorithm>
 #include <chrono>
@@ -13,8 +14,8 @@
 // third axis exactly the way step_3d extends the 2D step: at nz = 1 the
 // z fractional offsets are identically zero, every dk != 0 cell is culled by
 // the bounds check, and the kernel reduces bit-for-bit to the 2D one.
-// Accumulation is serial over particles in input order, deterministic by
-// construction. Double precision internally, float at the ports.
+// Destination slabs run concurrently, but accumulation at each face retains
+// the serial input-particle order. Double precision internally, float at ports.
 
 namespace {
 
@@ -101,56 +102,63 @@ void p2g_3d(int nx, int ny, int nz, int adapt, int st, float eps_mean,
     }
 
     const size_t np = positions.size();
-    for (size_t i = 0; i < np; ++i) {
-        const double sc = (adOn && i < scale.size())
-            ? static_cast<double>(scale[i]) : 1.0;
-        const int tier = (adOn && sc >= 1.5) ? 1 : 0;
-        const double r = tier ? 2.0 : 1.0;
-        const int span = tier ? 2 : 1;
-        const double inv_r2 = 1.0 / (r * r);
-        const double q[3] = {
-            i < momx.size() ? static_cast<double>(momx[i]) : 0.0,
-            i < momy.size() ? static_cast<double>(momy[i]) : 0.0,
-            i < momz.size() ? static_cast<double>(momz[i]) : 0.0};
-        const double mi = i < mass.size() ? static_cast<double>(mass[i]) : 0.0;
-        const double phi = i < phase.size() ? static_cast<double>(phase[i]) : 0.0;
-        const double wi = (stOn && i < wt.size())
-            ? static_cast<double>(wt[i]) : 0.0;
-        const double P[3] = {positions[i].x, positions[i].y, positions[i].z};
+    const Detail::OrderedScatterSlabs slabs(np, NX,
+        [&](size_t i) { return double(positions[i].x); },
+        [&](size_t i) { return adOn && i < scale.size() && scale[i] >= 1.5f ? 2.0 : 1.0; });
+#pragma omp parallel for schedule(dynamic, 1) if(slabs.count() > 1)
+    for (int slab = 0; slab < slabs.count(); ++slab) {
+        for (size_t slot = slabs.begin(slab); slot < slabs.end(slab); ++slot) {
+            const size_t i = slabs.particle(slot);
+            const double sc = (adOn && i < scale.size())
+                ? static_cast<double>(scale[i]) : 1.0;
+            const int tier = (adOn && sc >= 1.5) ? 1 : 0;
+            const double r = tier ? 2.0 : 1.0;
+            const int span = tier ? 2 : 1;
+            const double inv_r2 = 1.0 / (r * r);
+            const double q[3] = {
+                i < momx.size() ? static_cast<double>(momx[i]) : 0.0,
+                i < momy.size() ? static_cast<double>(momy[i]) : 0.0,
+                i < momz.size() ? static_cast<double>(momz[i]) : 0.0};
+            const double mi = i < mass.size() ? static_cast<double>(mass[i]) : 0.0;
+            const double phi = i < phase.size() ? static_cast<double>(phase[i]) : 0.0;
+            const double wi = (stOn && i < wt.size())
+                ? static_cast<double>(wt[i]) : 0.0;
+            const double P[3] = {positions[i].x, positions[i].y, positions[i].z};
 
-        for (int g = 0; g < 3; ++g) {
-            Acc& a = acc[g][tier];
-            double f[3];
-            int b[3];
-            for (int ax = 0; ax < 3; ++ax) {
-                const double p = P[ax] - off[g][ax];
-                b[ax] = static_cast<int>(std::floor(p + 0.5));
-                f[ax] = p - b[ax];
-            }
-            for (int di = -span; di <= span; ++di) {
-                const int ii = b[0] + di;
-                if (ii < 0 || ii >= dims[g][0]) continue;
-                const double dx2 = (f[0] - di) * (f[0] - di);
-                for (int dj = -span; dj <= span; ++dj) {
-                    const int jj = b[1] + dj;
-                    if (jj < 0 || jj >= dims[g][1]) continue;
-                    const double dy2 = (f[1] - dj) * (f[1] - dj);
-                    for (int dk = -span; dk <= span; ++dk) {
-                        const int kk = b[2] + dk;
-                        if (kk < 0 || kk >= dims[g][2]) continue;
-                        const double d2 =
-                            (dx2 + dy2 + (f[2] - dk) * (f[2] - dk)) * inv_r2;
-                        const double base = 1.0 - d2;
-                        if (base <= 0.0) continue;
-                        const double w3 = base * base * base;
-                        const size_t idx =
-                            (static_cast<size_t>(ii) * dims[g][1] + jj) *
-                                dims[g][2] + kk;
-                        a.K[idx] += w3;
-                        a.m[idx] += w3 * mi;
-                        a.mom[idx] += w3 * q[g];
-                        a.ph[idx] += w3 * phi;
-                        if (stOn) a.wtv[idx] += w3 * wi;
+            for (int g = 0; g < 3; ++g) {
+                Acc& a = acc[g][tier];
+                double f[3];
+                int b[3];
+                for (int ax = 0; ax < 3; ++ax) {
+                    const double p = P[ax] - off[g][ax];
+                    b[ax] = static_cast<int>(std::floor(p + 0.5));
+                    f[ax] = p - b[ax];
+                }
+                for (int di = -span; di <= span; ++di) {
+                    const int ii = b[0] + di;
+                    if (ii < slabs.lo(slab) || ii >= slabs.hi(slab) || ii >= dims[g][0]) continue;
+                    const double dx2 = (f[0] - di) * (f[0] - di);
+                    for (int dj = -span; dj <= span; ++dj) {
+                        const int jj = b[1] + dj;
+                        if (jj < 0 || jj >= dims[g][1]) continue;
+                        const double dy2 = (f[1] - dj) * (f[1] - dj);
+                        for (int dk = -span; dk <= span; ++dk) {
+                            const int kk = b[2] + dk;
+                            if (kk < 0 || kk >= dims[g][2]) continue;
+                            const double d2 =
+                                (dx2 + dy2 + (f[2] - dk) * (f[2] - dk)) * inv_r2;
+                            const double base = 1.0 - d2;
+                            if (base <= 0.0) continue;
+                            const double w3 = base * base * base;
+                            const size_t idx =
+                                (static_cast<size_t>(ii) * dims[g][1] + jj) *
+                                    dims[g][2] + kk;
+                            a.K[idx] += w3;
+                            a.m[idx] += w3 * mi;
+                            a.mom[idx] += w3 * q[g];
+                            a.ph[idx] += w3 * phi;
+                            if (stOn) a.wtv[idx] += w3 * wi;
+                        }
                     }
                 }
             }
