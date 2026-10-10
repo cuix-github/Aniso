@@ -34,7 +34,11 @@ def main():
     shape = receipts[0].get("demo_shape")
     if shape:
         from run_bore_suite import scene, render3d
-        _, pmin, pmax, *_ = scene(*shape)
+        obs = receipts[0].get("demo_obstacles")
+        if obs:
+            pmin, pmax = np.array(obs[0], np.float32), np.array(obs[1], np.float32)
+        else:
+            _, pmin, pmax, *_ = scene(*shape)
     for k in range(SUB):
         panels = []
         for j, root in enumerate(roots):
