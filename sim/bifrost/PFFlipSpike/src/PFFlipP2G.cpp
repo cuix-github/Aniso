@@ -1,8 +1,11 @@
 #include "PFFlipSolve.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 // The fused particle-to-grid scatter. See the header for the contract; the
@@ -78,6 +81,16 @@ void p2g_3d(int nx, int ny, int nz, int adapt, int st, float eps_mean,
     const bool adOn = adapt != 0;
     const int ntier = adOn ? 2 : 1;
 
+    // PFFLIP_PROFILE=1 prints scatter/pack wall times to stderr, like the
+    // step node's PFPROF lines.
+    static const bool prof = []() {
+        const char* e = std::getenv("PFFLIP_PROFILE");
+        return e && e[0] == '1';
+    }();
+    using Clock = std::chrono::steady_clock;
+    const Clock::time_point tBegin = Clock::now();
+    Clock::time_point tScatter{};
+
     const int dims[3][3] = {{NX + 1, NY, NZ}, {NX, NY + 1, NZ}, {NX, NY, NZ + 1}};
     const double off[3][3] = {{0.0, 0.5, 0.5}, {0.5, 0.0, 0.5}, {0.5, 0.5, 0.0}};
     size_t ng[3];
@@ -144,6 +157,8 @@ void p2g_3d(int nx, int ny, int nz, int adapt, int st, float eps_mean,
         }
     }
 
+    if (prof) tScatter = Clock::now();
+
     const double em = eps_mean, ew = ws_epsilon;
     auto mean = [&](const Vec& A, const Vec& K) {
         auto out = Amino::newMutablePtr<Amino::Array<float>>(A.size());
@@ -181,6 +196,25 @@ void p2g_3d(int nx, int ny, int nz, int adapt, int st, float eps_mean,
             *outs[t][g][3] = stOn ? mean(a.wtv, a.K) : empty();
             *outs[t][g][4] = adOn ? wsChan(a.K) : empty();
         }
+
+    if (prof) {
+        const auto ms = [](Clock::time_point a, Clock::time_point b) {
+            return std::chrono::duration<double, std::milli>(b - a).count();
+        };
+        const Clock::time_point tEnd = Clock::now();
+        std::fprintf(stderr, "P2GPROF np=%zu scatter=%.1f pack=%.1f total=%.1f\n",
+                     np, ms(tBegin, tScatter), ms(tScatter, tEnd),
+                     ms(tBegin, tEnd));
+        std::fflush(stderr);
+    }
+}
+
+void dump_gate(int step_index, int every, const Amino::String& path,
+               Amino::String& path_out) {
+    // Pass the write path through only every Nth substep (step 0 always);
+    // an empty path makes the downstream write node skip the dump cheaply.
+    path_out = (every <= 1 || step_index % std::max(1, every) == 0)
+        ? path : Amino::String();
 }
 
 } // namespace Solve

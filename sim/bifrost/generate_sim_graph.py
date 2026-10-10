@@ -714,6 +714,36 @@ def build3d():
         ]
 
     g["compounds"][0]["name"] = "User::PFFlip::sim_3d"
+    return gate_dumps(g)
+
+
+def gate_dumps(g):
+    """Route the per-substep dump paths through PFFlip::Solve::dump_gate so
+    the dump_every port (default 1 = dump every substep; step 0 always) keeps
+    file I/O out of timed production substeps. The diagnostics write stays
+    ungated: it is tiny and every driver relies on it."""
+    top = g["compounds"][0]
+    body = top["compounds"][0]
+    top["ports"].append(P("dump_every", "input", "int", "1"))
+    body["ports"].append(P("dump_every", "input", "int"))
+    top["connections"].append({"source": ".dump_every",
+                               "target": "loop.dump_every"})
+    pats = [c for c in body["connections"]
+            if c["source"] in (".pos_pattern", ".esc_pattern", ".scl_pattern",
+                               ".ph_pattern")
+            and c["target"].endswith(".file_path")]
+    assert len(pats) == 4, pats
+    for c in pats:
+        name = "dg_" + c["source"][1:].split("_")[0]
+        body["compoundNodes"].append({"nodeName": name,
+                                      "nodeType": "PFFlip::Solve::dump_gate"})
+        body["connections"] += [
+            {"source": "idx_i.int", "target": name + ".step_index"},
+            {"source": ".dump_every", "target": name + ".every"},
+            {"source": c["source"], "target": name + ".path"},
+            {"source": name + ".path_out", "target": c["target"]},
+        ]
+        body["connections"].remove(c)
     return g
 
 
