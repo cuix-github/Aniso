@@ -1,0 +1,241 @@
+Validation on 2026-10-10; Windows, MSVC Release/OpenMP, Bifrost 3.1.0.8.
+OMP_NUM_THREADS=32; OMP_DYNAMIC=FALSE.
+Threaded DLL SHA-256: afed9851419ae1a3d049a6e5a8f9a1afdad30fba196b4eabfb2b9f6652bebd8f
+
+Nine of ten existing regression scripts passed. validate_st_loop.py prints FAIL
+but returns zero; the wrapper checks its text too and rejected that result.
+The original main DLL reproduces the same failure with all 502 saved arrays
+byte-identical. Neither gate thresholds nor physical outputs were changed.
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_p2g.py
+=== flat2d: nz=1 against the reference operator, all modes
+    worst |node - reference| over all modes/channels: 3.97e-04
+    PASS
+=== rand3d: independent numpy 3D splat, adapt + st on
+    worst |node - numpy| over all 30 channels: 2.38e-04
+    PASS
+=== permute: x<->z state permutation must transpose u<->w channels
+    worst |u(state) - w(permuted state)^T|: 0.00e+00
+    PASS (float rounding)
+ALL PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_3d.py
+=== thin_slab (nz=1 lockstep against the 2D reference)
+  iterations: node 533, python 533
+  max |diff| face u: 6.870e-07  OK
+  max |diff| face v: 4.350e-07  OK
+  max |diff| positions: 1.512e-05  OK
+  max |diff| velocities: 4.811e-06  OK
+thin_slab: PASS
+=== multigrid (same system, preconditioner 1 vs 0)
+  iterations: jacobi 533 -> multigrid 9
+  residuals: 9.36e-07 vs 5.60e-07; solution difference 1.431e-06
+multigrid: PASS
+=== hydro3d (32x32x8 two-phase column, analytic channels, multigrid)
+  max |velocity| after projection: 1.689e-07 (gravity kick was 9.8)
+  pressure jump: 152052 vs analytic ~156947 (96.9 percent); iterations 10
+hydro3d: PASS
+OVERALL: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/verify_engineering.py
+===== A
+A mirror-x: pos 1.91e-06, vel 7.15e-07, escape flips 0
+A permute-xz: pos 0.00e+00, vel 0.00e+00, escape flips 0
+A: PASS
+===== B
+B faces u/v/w: 5.94e-08 2.98e-08 5.95e-08; pos 9.54e-07; vel 3.85e-07; escape mismatches 0
+B: PASS
+===== C
+C m=16: velocity annihilation 2.30e-08; pressure error vs analytic 1.608e-03
+C m=32: velocity annihilation 2.64e-08; pressure error vs analytic 4.017e-04
+C m=64: velocity annihilation 3.10e-08; pressure error vs analytic 1.004e-04
+C pressure-error refinement ratios: 4.00, 4.00 (second order -> ~4)
+C: PASS
+===== D
+D telescoped momentum identity: lhs 7.473500e+05, rhs 7.473501e+05, relative residual 2.67e-08
+D: PASS
+OVERALL: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_escape.py lockstep
+=== lockstep (node escape treatment vs python, identical state)
+  escaped python: 53, node: 53, mask mismatches: 0 of 76800
+  max |diff| positions 7.666e-06, velocities 3.274e-05
+lockstep: PASS
+OVERALL: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_st_node.py
+escaped: python 238, node 238, mismatches 0
+max |diff| positions 1.135e-05, velocities 1.348e-04
+ST NODE LOCKSTEP: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_solids.py
+penetrations: node 0, python 0
+escape mismatches: 0; max |diff| pos 7.636e-06, vel 3.397e-06
+SOLIDS LOCKSTEP: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_adaptive_node.py
+state: 38415 particles, 12795 coarse, volume 76800
+counts: node 37035 (13255 coarse), python 37110 (13230 coarse)
+represented volume: node 76800, python 76800 (exact target)
+liquid centre of mass: node (60.007,27.099) vs python (60.007,27.099)
+ADAPTIVE NODE: PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_p2g_loop.py
+=== dam: plain mode, 96x48, 80 substeps of 0.06
+    stock: front error max 1.882 cells (final 0.000), centroid drift max 1.238
+    fused: front error max 0.996 cells (final 0.000), centroid drift max 0.347
+    PASS (fused tracks the reference at least as closely as stock)
+=== hydro: two-phase column, fused vs stock vs reference
+    grid max divergence after projection: stock 6.7e-07, fused 2.6e-07
+    liquid p99.9 step-speed: reference 0.481, stock 0.100, fused 0.104 cells/s
+    PASS
+ALL PASS
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_adaptive_loop.py
+volume drift: bifrost 0.00e+00, python 0.00e+00 (want 0)
+peak compression: bifrost 52%, python 52%
+count ratio bifrost/python over run: 0.968 .. 1.028
+ADAPTIVE LOOP: PASS
+C:\Users\5d149\source\Aniso\sim\bifrost\validate_adaptive_loop.py:6: SyntaxWarning: invalid escape sequence '\.'
+  Run from sim/bifrost:  ..\..\.venv\Scripts\python.exe validate_adaptive_loop.py
+
+
+COMMAND: .venv/Scripts/python.exe sim/bifrost/validate_st_loop.py
+2D plunge at 8x dt, 60 steps: peak droplets bifrost 41 vs python 94; bubbles 56 vs 259
+  CG iters mean 13.8; worst divergence 1.15e-04; max CFL 36.1 (by design > 1 now)
+st 2D loop: FAIL
+3D big-step smoke: worst div 8.43e-06, iters mean 11.5, finite: True
+st 3D smoke: PASS
+OVERALL: FAIL
+C:\Users\5d149\source\Aniso\sim\bifrost\validate_st_loop.py:5: SyntaxWarning: invalid escape sequence '\.'
+  Run from sim/bifrost:  ..\..\.venv\Scripts\python.exe validate_st_loop.py
+
+
+BASELINE RECHECK (same stock graph, preserved independent main pack)
+Running unchanged validation against preserved main pack: C:\Users\5d149\source\Aniso\sim\bifrost\out\threading_baseline_pack\PFFlipSpikePackConfig.json
+C:\Users\5d149\source\Aniso\sim\bifrost\validate_st_loop.py:5: SyntaxWarning: invalid escape sequence '\.'
+  Run from sim/bifrost:  ..\..\.venv\Scripts\python.exe validate_st_loop.py
+2D plunge at 8x dt, 60 steps: peak droplets bifrost 41 vs python 94; bubbles 56 vs 259
+  CG iters mean 13.8; worst divergence 1.15e-04; max CFL 36.1 (by design > 1 now)
+st 2D loop: FAIL
+3D big-step smoke: worst div 8.43e-06, iters mean 11.5, finite: True
+st 3D smoke: PASS
+OVERALL: FAIL
+{
+  "all_502_arrays_bit_identical": true,
+  "array_count": 502,
+  "different": [],
+  "baseline_dll_sha256": "1d9cfcbb17b21752ef4e30cd34fccb390c83e9fe6018e0448ce1a4a425820f93"
+}
+
+
+WRAPPERS AS RUN
+Saved under sim/bifrost/out/threading/; parents[2] resolves to sim/bifrost.
+They intentionally refuse to reuse the regression result directory. The
+baseline recheck requires the completed threaded ST run and replaces those
+ignored legacy output arrays after saving their hashes.
+
+run_regressions.py:
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+here = Path(__file__).resolve().parents[2]
+out = here / 'out/threading/regression_final'
+out.mkdir(exist_ok=False)
+env = os.environ.copy()
+env.update(OMP_NUM_THREADS='32', OMP_DYNAMIC='FALSE')
+tests = [
+    ['validate_p2g.py'], ['validate_3d.py'], ['verify_engineering.py'],
+    ['validate_escape.py', 'lockstep'], ['validate_st_node.py'],
+    ['validate_solids.py'], ['validate_adaptive_node.py'],
+    ['validate_p2g_loop.py'], ['validate_adaptive_loop.py'], ['validate_st_loop.py'],
+]
+summary = []
+for args in tests:
+    start = time.perf_counter()
+    print('RUN', ' '.join(args), flush=True)
+    r = subprocess.run([sys.executable, '-u', str(here / args[0]), *args[1:]],
+                       cwd=here, env=env, capture_output=True, text=True)
+    text = r.stdout + r.stderr
+    (out / (Path(args[0]).stem + '.txt')).write_text(text)
+    ok = r.returncode == 0 and 'PASS' in text and not re.search(r'\bFAIL\b|FAILURES PRESENT|Traceback', text)
+    summary.append(dict(test=' '.join(args), passed=ok, seconds=time.perf_counter()-start))
+    (out / 'summary.json').write_text(json.dumps(summary, indent=2))
+    print(text[-7000:], flush=True)
+    if not ok:
+        raise SystemExit('REGRESSION FAILED: ' + ' '.join(args))
+print('ALL TEN INDEPENDENT/PHYSICS/LOOP REGRESSIONS PASSED', flush=True)
+
+check_st_baseline.py:
+import hashlib
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+
+here = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(here))
+sdk = Path(r'C:\Program Files\Autodesk\Bifrost\Maya2027\3.1.0.8\bifrost')
+pack = here / 'out/threading_baseline_pack/PFFlipSpikePackConfig.json'
+def snapshot():
+    result = {}
+    for name, steps in (('st2d', 60), ('st3d', 40)):
+        d = here / ('out/loop3_' + name)
+        names = [f'{kind}.{i:04d}.npy' for kind in ('frame','esc','scl','ph','diag') for i in range(steps)] + ['final.npy']
+        for n in names:
+            result[name + '/' + n] = hashlib.sha256((d / n).read_bytes()).hexdigest()
+    return result
+before = snapshot()
+(here / 'out/threading/regression_final/st_loop_threaded_manifest.json').write_text(json.dumps(before, indent=2))
+real_run = subprocess.run
+def baseline_run(args, *a, **kw):
+    if Path(str(args[0])).name == 'run_sim_3d.bat':
+        args = [str(sdk / 'bin/bifcmd.exe'), str(here / 'sim_3d.json'), *args[1:]]
+        env = os.environ.copy()
+        env.update(OMP_NUM_THREADS='32', OMP_DYNAMIC='FALSE', BIFROST_LIB_CONFIG_FILES=str(pack))
+        env['PATH'] = str(sdk/'bin') + os.pathsep + str(sdk/'thirdparty/bin') + os.pathsep + env['PATH']
+        kw['env'] = env
+    return real_run(args, *a, **kw)
+subprocess.run = baseline_run
+print('Running unchanged validation against preserved main pack:', pack, flush=True)
+runpy.run_path(str(here / 'validate_st_loop.py'), run_name='__main__')
+after = snapshot()
+same = before == after
+result = {'all_502_arrays_bit_identical':same,'array_count':len(before),
+          'different':[k for k in before if before[k] != after[k]],
+          'baseline_dll_sha256':hashlib.sha256((pack.parent/'lib/PFFlipSpikeOps.dll').read_bytes()).hexdigest()}
+(here/'out/threading/regression_final/st_loop_baseline_comparison.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2),flush=True)
+assert same, 'Changed outputs require investigation'
+
+
+20.04-SECOND BORE AUDIT
+{
+  "frames_checked": 167,
+  "represented_volume_drift": 0,
+  "liquid_volume_drift": 0,
+  "solver_state_penetrations": 0,
+  "display_position_penetrations": 1225,
+  "display_audit_passed": false,
+  "peak_droplets": 1270,
+  "peak_bubbles": 3318
+}
+All 1,146 arrays byte-identical between independent main and threaded builds.
+Both commands intentionally exit 1 because the display audit fails.
+All 959 common outputs also match the baseline before raw-position instrumentation.

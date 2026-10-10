@@ -1,4 +1,5 @@
 #include "PFFlipSolve.h"
+#include "PFFlipScatter.h"
 
 #include <algorithm>
 #include <chrono>
@@ -526,36 +527,43 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
                           const std::vector<double>& scl, Vec cntU[2], Vec cntV[2],
                           Vec cntW[2]) {
         const size_t n = qx.size();
-        for (size_t pi = 0; pi < n; ++pi) {
-            const int ph = isLiq[pi] ? 1 : 0;
-            const double val = std::pow(scl[pi], dExp);
-            const int ngrids = NZ == 1 ? 2 : 3;
-            for (int grid = 0; grid < ngrids; ++grid) {
-                const double ox = grid == 0 ? 0.0 : 0.5;
-                const double oy = grid == 1 ? 0.0 : 0.5;
-                const double oz = grid == 2 ? 0.0 : 0.5;
-                const int gx = grid == 0 ? NX + 1 : NX;
-                const int gy = grid == 1 ? NY + 1 : NY;
-                const int gzd = grid == 2 ? NZ + 1 : NZ;
-                Vec* cnt = grid == 0 ? cntU : (grid == 1 ? cntV : cntW);
-                const double ax = qx[pi] - ox, ay = qy[pi] - oy, az = qz[pi] - oz;
-                const int bx = static_cast<int>(std::floor(ax + 0.5));
-                const int by = static_cast<int>(std::floor(ay + 0.5));
-                const int bz = static_cast<int>(std::floor(az + 0.5));
-                const double fx = ax - bx, fy = ay - by, fz = az - bz;
-                for (int di = -1; di <= 1; ++di)
-                    for (int dj = -1; dj <= 1; ++dj)
-                        for (int dk = -1; dk <= 1; ++dk) {
-                            const int i = bx + di, j = by + dj, k = bz + dk;
-                            if (i < 0 || i >= gx || j < 0 || j >= gy || k < 0 || k >= gzd)
-                                continue;
-                            const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
-                                              (fz - dk) * (fz - dk);
-                            const double wgt = std::max(1.0 - d2, 0.0);
-                            if (wgt > 0.0)
-                                cnt[ph][(static_cast<size_t>(i) * gy + j) * gzd + k] +=
-                                    wgt * wgt * wgt * val;
-                        }
+        const Detail::OrderedScatterSlabs slabs(n, NX,
+            [&](size_t i) { return qx[i]; }, [](size_t) { return 1.0; });
+#pragma omp parallel for schedule(dynamic, 1) if(slabs.count() > 1)
+        for (int slab = 0; slab < slabs.count(); ++slab) {
+            for (size_t slot = slabs.begin(slab); slot < slabs.end(slab); ++slot) {
+                const size_t pi = slabs.particle(slot);
+                const int ph = isLiq[pi] ? 1 : 0;
+                const double val = std::pow(scl[pi], dExp);
+                const int ngrids = NZ == 1 ? 2 : 3;
+                for (int grid = 0; grid < ngrids; ++grid) {
+                    const double ox = grid == 0 ? 0.0 : 0.5;
+                    const double oy = grid == 1 ? 0.0 : 0.5;
+                    const double oz = grid == 2 ? 0.0 : 0.5;
+                    const int gx = grid == 0 ? NX + 1 : NX;
+                    const int gy = grid == 1 ? NY + 1 : NY;
+                    const int gzd = grid == 2 ? NZ + 1 : NZ;
+                    Vec* cnt = grid == 0 ? cntU : (grid == 1 ? cntV : cntW);
+                    const double ax = qx[pi] - ox, ay = qy[pi] - oy, az = qz[pi] - oz;
+                    const int bx = static_cast<int>(std::floor(ax + 0.5));
+                    const int by = static_cast<int>(std::floor(ay + 0.5));
+                    const int bz = static_cast<int>(std::floor(az + 0.5));
+                    const double fx = ax - bx, fy = ay - by, fz = az - bz;
+                    for (int di = -1; di <= 1; ++di)
+                        for (int dj = -1; dj <= 1; ++dj)
+                            for (int dk = -1; dk <= 1; ++dk) {
+                                const int i = bx + di, j = by + dj, k = bz + dk;
+                                if (i < slabs.lo(slab) || i >= slabs.hi(slab) || i >= gx ||
+                                    j < 0 || j >= gy || k < 0 || k >= gzd)
+                                    continue;
+                                const double d2 = (fx - di) * (fx - di) + (fy - dj) * (fy - dj) +
+                                                  (fz - dk) * (fz - dk);
+                                const double wgt = std::max(1.0 - d2, 0.0);
+                                if (wgt > 0.0)
+                                    cnt[ph][(static_cast<size_t>(i) * gy + j) * gzd + k] +=
+                                        wgt * wgt * wgt * val;
+                            }
+                }
             }
         }
     };
@@ -572,7 +580,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     if ((escape != 0 || adOn) && np > 0) {
         std::vector<double> qx(np), qy(np), qz(np), scl(np);
         std::vector<char> isLiq(np);
-        for (size_t pi = 0; pi < np; ++pi) {
+#pragma omp parallel for schedule(static)
+        for (long long pi = 0; pi < static_cast<long long>(np); ++pi) {
             qx[pi] = positions[pi].x; qy[pi] = positions[pi].y; qz[pi] = positions[pi].z;
             scl[pi] = scaleOf(pi);
             isLiq[pi] = (pi < particle_phase.size() ? particle_phase[pi] : 0.0f) >= 0.5f;
@@ -583,7 +592,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         countSplat(qx, qy, qz, isLiq, scl, cntU, cntV, cntW);
         if (escape != 0) {
             const double thresh = (1.0 - esc_phi) * rho0_face;
-            for (size_t pi = 0; pi < np; ++pi) {
+#pragma omp parallel for schedule(static)
+            for (long long pi = 0; pi < static_cast<long long>(np); ++pi) {
                 const int other = isLiq[pi] ? 0 : 1;
                 const double frac = sampleCnt(cntU[other], cntV[other], cntW[other],
                                               qx[pi], qy[pi], qz[pi]);
@@ -647,12 +657,17 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         std::mt19937 rng(static_cast<unsigned>(st_seed) * 2654435761u ^
                          static_cast<unsigned>(step_index) * 2246822519u);
         std::uniform_real_distribution<double> uni(-0.5, 0.5);
-        for (size_t pi = 0; pi < np; ++pi) {
+        // Keep the original RNG stream in input order. Only the independent
+        // velocity attenuation and eight-point normalization run in parallel;
+        // per-thread RNGs would change trajectories with the worker count.
+        for (size_t pi = 0; pi < np; ++pi) tauNew[pi] = uni(rng);
+#pragma omp parallel for schedule(static)
+        for (long long pi = 0; pi < lnp; ++pi) {
             const double sp = std::max({std::fabs(nvx[pi]), std::fabs(nvy[pi]),
                                         std::fabs(nvz[pi])});
             const double c = std::clamp(sp * dt, 0.0, 1.0);
             const double xi = c * c * (3.0 - 2.0 * c);
-            const double tp = xi * uni(rng);
+            const double tp = xi * tauNew[pi];
             tauNew[pi] = tp;
             wtNewV[pi] = wtKernel(tp) / wtNorm(xi);
         }
@@ -732,13 +747,16 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     if (adOn && np > 0) {
         // fresh liquid-count field at the new positions, as the reference does.
         std::vector<char> isLiq(Px.size());
-        for (size_t i = 0; i < Px.size(); ++i) isLiq[i] = Ph01[i] >= 0.5 ? 1 : 0;
+#pragma omp parallel for schedule(static)
+        for (long long i = 0; i < static_cast<long long>(Px.size()); ++i)
+            isLiq[i] = Ph01[i] >= 0.5 ? 1 : 0;
         Vec cntU[2] = {Vec(nu, 0.0), Vec(nu, 0.0)};
         Vec cntV[2] = {Vec(nv, 0.0), Vec(nv, 0.0)};
         Vec cntW[2] = {Vec(nw, 0.0), Vec(nw, 0.0)};
         countSplat(Px, Py, Pz, isLiq, Scl, cntU, cntV, cntW);
         std::vector<double> lf(Px.size());
-        for (size_t i = 0; i < Px.size(); ++i)
+#pragma omp parallel for schedule(static)
+        for (long long i = 0; i < static_cast<long long>(Px.size()); ++i)
             lf[i] = sampleCnt(cntU[1], cntV[1], cntW[1], Px[i], Py[i], Pz[i]) /
                     std::max(static_cast<double>(rho0_face), 1e-9);
 
@@ -871,7 +889,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
     // ---- final obstacle sweep: merge centroids and split children may land
     // inside a box; push every particle out along least penetration.
     if (nObs > 0) {
-        for (size_t i = 0; i < Px.size(); ++i) {
+#pragma omp parallel for schedule(static)
+        for (long long i = 0; i < static_cast<long long>(Px.size()); ++i) {
             for (size_t b = 0; b < nObs; ++b) {
                 const auto& m0 = obstacles_min[b];
                 const auto& m1 = obstacles_max[b];
