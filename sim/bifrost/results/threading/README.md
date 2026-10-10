@@ -161,3 +161,18 @@ two demo commands currently return nonzero for the recorded display defect;
 inspect their saved invariants and identity result rather than describing
 that gate as passed. The renderer can intentionally show an identical pair
 with a failed display audit, but labels the issue and refuses unequal states.
+
+## Scene v2 (2026-10-10, after PR #43's display clamp)
+
+Xue asked for obstacles mid-flume where collisions can be observed, not at
+the domain edge. `threading_experiment.py demo3d` now uses its own
+`demo_scene` (the validated bore-suite scene is untouched): two thicker
+pillars centered in x and z, one taller, at 96x24x48 instead of 64x16x32,
+and `run_bore_suite.render3d` gained a per-pixel depth buffer so water in
+front of a pillar covers it and water behind is covered. With the display
+clamp in, the audit both builds failed above now passes: 0 display
+penetrations across all 167 frames, solver penetrations still 0, volumes
+still exact, and serial-vs-32-worker outputs still bit-identical (1,014
+arrays). Demo timing at this scale: 181.0 s serial vs 53.6 s with 32
+workers for the 167-substep run. The committed video was re-rendered from
+this scene.
