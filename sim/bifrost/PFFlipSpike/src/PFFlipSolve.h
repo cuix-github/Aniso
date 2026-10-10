@@ -27,6 +27,7 @@
 
 #include <Amino/Core/Array.h>
 #include <Amino/Core/Ptr.h>
+#include <Amino/Core/String.h>
 #include <Amino/Cpp/Annotate.h>
 #include <Bifrost/Math/Types.h>
 
@@ -222,6 +223,17 @@ void p2g_3d(int   nx,
             Amino::Ptr<Amino::Array<float>>& w2_phase,
             Amino::Ptr<Amino::Array<float>>& w2_wt,
             Amino::Ptr<Amino::Array<float>>& w2_ws)
+    AMINO_ANNOTATE("Amino::Node");
+
+// Dump policy: pass the write path through only every Nth substep (step 0
+// always dumps; every <= 1 means every substep). An empty path makes the
+// downstream write node skip the dump, which keeps per-substep file I/O out
+// of production runs without touching the write nodes themselves.
+PF_FLIP_SPIKE_DECL
+void dump_gate(int step_index,
+               int every,
+               const Amino::String& path,
+               Amino::String& path_out)
     AMINO_ANNOTATE("Amino::Node");
 
 } // namespace Solve

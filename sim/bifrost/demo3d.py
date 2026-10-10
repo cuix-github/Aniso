@@ -42,7 +42,8 @@ def lattice(ni, nj, nk):
 
 
 def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
-                 extra_ports=None, seed_fn=None, obstacles=None, fused=False):
+                 extra_ports=None, seed_fn=None, obstacles=None, fused=False,
+                 dump_every=1):
     d = os.path.join(HERE, "out", "loop3_" + tag)
     os.makedirs(d, exist_ok=True)
     pos, typ = (seed_fn or seed3d)(nx, ny, nz, mask)
@@ -67,6 +68,7 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
             "--set-port", "nx", str(nx), "--set-port", "ny", str(ny),
             "--set-port", "nz", str(nz), "--set-port", "dt", str(dt),
             "--set-port", "substeps", str(substeps), "--set-port", "preconditioner", "1",
+            "--set-port", "dump_every", str(dump_every),
             "--set-port", "rho_liquid", str(rho_l), "--set-port", "rho_air", str(rho_g),
             "--set-port", "pos_pattern", (d + "/frame.####").replace("\\", "/"),
             "--set-port", "diag_pattern", (d + "/diag.####").replace("\\", "/"),
@@ -79,7 +81,8 @@ def run_bifrost3(tag, nx, ny, nz, mask, substeps, dt, rho_l=1000.0, rho_g=1.0,
     for k in arrs:
         args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
     res = subprocess.run(args, capture_output=True, text=True)
-    if res.returncode != 0 or not os.path.exists(os.path.join(d, f"frame.{substeps - 1:04d}.npy")):
+    last = ((substeps - 1) // dump_every) * dump_every
+    if res.returncode != 0 or not os.path.exists(os.path.join(d, f"frame.{last:04d}.npy")):
         sys.stderr.write(res.stdout[-3000:] + res.stderr[-2000:])
         raise SystemExit(f"bifcmd 3D loop failed for {tag}")
     diags = np.stack([np.load(os.path.join(d, f"diag.{k:04d}.npy")) for k in range(substeps)])
