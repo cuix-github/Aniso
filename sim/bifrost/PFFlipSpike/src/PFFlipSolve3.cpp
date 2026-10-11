@@ -55,6 +55,7 @@ void applyA(const Level& L, const Vec& x, Vec& out) {
 
 void buildDiag(Level& L) {
     L.diagInv.assign(L.nc(), 0.0);
+#pragma omp parallel for schedule(static)
     for (int i = 0; i < L.nx; ++i)
         for (int j = 0; j < L.ny; ++j)
             for (int k = 0; k < L.nz; ++k) {
@@ -123,14 +124,17 @@ std::vector<Level> buildHierarchy(Level&& fine) {
         c.bu.assign(static_cast<size_t>(c.nx + 1) * c.ny * c.nz, 0.0);
         c.bv.assign(static_cast<size_t>(c.nx) * (c.ny + 1) * c.nz, 0.0);
         c.bw.assign(static_cast<size_t>(c.nx) * c.ny * (c.nz + 1), 0.0);
+#pragma omp parallel for schedule(static)
         for (int I = 0; I <= c.nx; ++I)
             for (int J = 0; J < c.ny; ++J)
                 for (int K = 0; K < c.nz; ++K)
                     c.bu[c.iu(I, J, K)] = (I == 0 || I == c.nx) ? 0.0 : faceAvgU(f, I, J, K, c.ny, c.nz);
+#pragma omp parallel for schedule(static)
         for (int I = 0; I < c.nx; ++I)
             for (int J = 0; J <= c.ny; ++J)
                 for (int K = 0; K < c.nz; ++K)
                     c.bv[c.iv(I, J, K)] = (J == 0 || J == c.ny) ? 0.0 : faceAvgV(f, I, J, K);
+#pragma omp parallel for schedule(static)
         for (int I = 0; I < c.nx; ++I)
             for (int J = 0; J < c.ny; ++J)
                 for (int K = 0; K <= c.nz; ++K)
@@ -150,21 +154,39 @@ void vcycle(std::vector<Level>& ls, size_t l, Vec& tmp) {
     }
     smooth(L, L.x, L.b, 2, tmp);
     applyA(L, L.x, tmp);
-    for (size_t c = 0; c < L.nc(); ++c) L.r[c] = L.b[c] - tmp[c];
+    const long long ncl = static_cast<long long>(L.nc());
+#pragma omp parallel for schedule(static)
+    for (long long c = 0; c < ncl; ++c) L.r[c] = L.b[c] - tmp[c];
     Level& C = ls[l + 1];
-    std::fill(C.b.begin(), C.b.end(), 0.0);
     std::fill(C.x.begin(), C.x.end(), 0.0);
-    std::vector<int> cnt(C.nc(), 0);
-    for (int i = 0; i < L.nx; ++i)
-        for (int j = 0; j < L.ny; ++j)
-            for (int k = 0; k < L.nz; ++k) {
-                const size_t cc = C.ic(i / 2, std::min(j / 2, C.ny - 1), std::min(k / 2, C.nz - 1));
-                C.b[cc] += L.r[L.ic(i, j, k)];
-                ++cnt[cc];
+    // Gather form of the cell-average restriction: each coarse cell sums its
+    // fine children in fine-lexicographic order - the exact addition order
+    // the old fine-loop scatter produced - so coarse cells become independent
+    // writers and the result stays bit-identical to the serial version.
+#pragma omp parallel for schedule(static)
+    for (int I = 0; I < C.nx; ++I)
+        for (int J = 0; J < C.ny; ++J)
+            for (int K = 0; K < C.nz; ++K) {
+                double s = 0.0;
+                int n = 0;
+                for (int a = 0; a < 2; ++a) {
+                    const int i = 2 * I + a;
+                    if (i >= L.nx) continue;
+                    for (int b2 = 0; b2 < 2; ++b2) {
+                        const int j = 2 * J + b2;
+                        if (j >= L.ny) continue;
+                        for (int d = 0; d < 2; ++d) {
+                            const int k = 2 * K + d;
+                            if (k >= L.nz) continue;
+                            s += L.r[L.ic(i, j, k)];
+                            ++n;
+                        }
+                    }
+                }
+                C.b[C.ic(I, J, K)] = n ? s / n : 0.0;
             }
-    for (size_t c = 0; c < C.nc(); ++c)
-        if (cnt[c]) C.b[c] /= cnt[c];
     vcycle(ls, l + 1, tmp);
+#pragma omp parallel for schedule(static)
     for (int i = 0; i < L.nx; ++i)
         for (int j = 0; j < L.ny; ++j)
             for (int k = 0; k < L.nz; ++k)
@@ -446,7 +468,9 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
             vcycle(ls, 0, tmp);
             zz = ls[0].x;
         } else {
-            for (size_t c = 0; c < ncell; ++c) zz[c] = F.diagInv[c] * rr[c];
+            const long long nl = static_cast<long long>(ncell);
+#pragma omp parallel for schedule(static)
+            for (long long c = 0; c < nl; ++c) zz[c] = F.diagInv[c] * rr[c];
         }
     };
     precond(r, z);
@@ -473,7 +497,8 @@ void step_3d(int nx, int ny, int nz, float dt_in, float gravity, float rho_liqui
         double rzNew = 0.0;   // flexible (Polak-Ribiere) update tolerates the V-cycle
         for (size_t c = 0; c < ncell; ++c) rzNew += (r[c] - rPrev[c]) * z[c];
         const double betaCG = std::max(0.0, rzNew / rz);
-        for (size_t c = 0; c < ncell; ++c) d[c] = z[c] + betaCG * d[c];
+#pragma omp parallel for schedule(static)
+        for (long long c = 0; c < ncl; ++c) d[c] = z[c] + betaCG * d[c];
         rz = 0.0;
         for (size_t c = 0; c < ncell; ++c) rz += r[c] * z[c];
         if (rz == 0.0) break;
