@@ -41,6 +41,21 @@ kept current and supersedes anything older.
   speed claims use the same machine, same state, same day — the canonical
   profiling state is the mid-bore dump in `sim/bifrost/out/loop3_D_finale_c1/`.
   Serialize timing runs; never overlap benchmarks.
+- Comparison-experiment protocol (the rules Xue set 2026-10-11 after a
+  dirty-worktree experiment compared a commit against itself and burned
+  rounds chasing the contradiction). Non-negotiable, every A/B experiment:
+  (1) verify the bench before measuring - assert the worktree/checkout state
+  is exactly what the experiment claims (`git status` clean, the intended
+  sha), never assume a cleanup from a previous step worked; (2) check the
+  return code of every state-changing step, especially restores - a silent
+  `git checkout -- .` failure poisons everything after it; (3) run a control
+  first - reproduce the known result in the current environment before
+  touching the variable, and if the control disagrees, stop; (4) change one
+  variable per run, with each arm writing to its own output directory,
+  never shared; (5) keep every arm's artifacts until conclusions land, so
+  contradictions are settled by diffing files instead of re-running; and
+  (6) when two experiments contradict each other, audit the bench before
+  theorizing about the physics.
 - The Bifrost boundary (Xue's own words, 2026-10-09): his dependence on
   Bifrost is about whole-workflow smoothness in the Maya ecosystem, not about
   any single stock node. So: Bifrost owns orchestration — graphs, ports,
