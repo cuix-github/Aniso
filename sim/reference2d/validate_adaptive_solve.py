@@ -28,7 +28,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from adaptive_solve import Operator, build_cells  # noqa: E402
+from adaptive_solve import Multigrid, Operator, build_cells  # noqa: E402
 from pfflip2d import Sim  # noqa: E402
 
 RES = os.path.join(HERE, "results", "adaptive")
@@ -327,9 +327,58 @@ def check_dam():
     return ok, {"rows": rows, "speed": speed, "iters_uniform": itu}
 
 
+def check_mg():
+    """Stage 2: the V-cycle hierarchy must reproduce the Jacobi-PCG solution
+    on the stage-1 scenes while collapsing the iteration count toward the
+    uniform solver's multigrid precedent (533 -> 9). Same systems, same
+    tolerance - only the preconditioner changes."""
+    print("=== mg: adaptive V-cycle PCG vs Jacobi-PCG, same systems")
+    dt = 0.06
+    sim, bu, bv = dam_state()
+    nx, ny = sim.nx, sim.ny
+    beta = beta_from_arrays(bu, bv)
+    scenes = []
+    target = liquid_band_target(sim, nx, ny, band=5)
+    cells = build_cells(nx, ny, 2, target)
+    op = Operator(cells, beta)
+    scenes.append(("dam band-5", cells, beta,
+                   op.rhs(sim.u, sim.v, dt), op))
+
+    N = 64
+    def phiy(y):
+        return np.clip(0.5 * (1 + np.tanh((0.5 * N - y) / 1.5)), 0, 1)
+    def betah(x, y, axis, span):
+        return 1.0 / (1.0 + 999.0 * phiy(y))
+    tgt = np.full((N, N), 2, int)
+    yy = np.arange(N)[None, :].repeat(N, 0)
+    tgt[abs(yy - 0.5 * N) < 10] = 0
+    tgt[(abs(yy - 0.5 * N) >= 10) & (abs(yy - 0.5 * N) < 16)] = 1
+    tgt[:2, :] = tgt[-2:, :] = tgt[:, :2] = tgt[:, -2:] = 0
+    hcells = build_cells(N, N, 2, tgt)
+    hop = Operator(hcells, betah)
+    u0 = np.zeros((N + 1, N))
+    v0 = np.full((N, N + 1), -9.8 * dt)
+    v0[:, 0] = v0[:, -1] = 0.0
+    scenes.append(("hydro 1000:1", hcells, betah, hop.rhs(u0, v0, dt), hop))
+
+    ok = True
+    for name, cells2, bfn, b, op2 in scenes:
+        pj, itj = op2.solve(b, tol=1e-9, max_iter=60000)
+        mg = Multigrid(cells2, bfn)
+        pm, itm = mg.solve(b, tol=1e-9, max_iter=2000)
+        diff = abs((pm - pm.mean()) - (pj - pj.mean())).max()
+        scale = max(abs(pj - pj.mean()).max(), 1e-300)
+        print(f"    {name}: Jacobi-PCG {itj} iters -> V-cycle PCG {itm} iters;"
+              f" solutions agree to {diff / scale:.2e} (levels {len(mg.ops)})")
+        ok = ok and itm <= 40 and diff / scale < 1e-6
+    print("    PASS" if ok else "    FAIL")
+    return ok
+
+
 def main():
     os.makedirs(RES, exist_ok=True)
-    results = [check_reduce(), check_anchor(), check_order(), check_hydro()]
+    results = [check_reduce(), check_anchor(), check_order(), check_hydro(),
+               check_mg()]
     ok_dam, dam_stats = check_dam()
     results.append(ok_dam)
     with open(os.path.join(RES, "stage1_gate.json"), "w") as f:
