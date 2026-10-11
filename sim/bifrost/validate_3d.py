@@ -171,6 +171,7 @@ def main():
     print("hydro3d:", "PASS" if ok3 else "FAIL")
 
     print("OVERALL:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

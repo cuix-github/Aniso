@@ -30,7 +30,17 @@ def seed_2d_slab(nx, ny, nz, mask):
 
 
 def main():
-    st_ports = {"st": 1, "st_seed": 7, "escape": 1, "rho0_face": 0.0}
+    # The graph's escape-parameter port defaults are all zero, so every
+    # parameter the reference defaults (esc_phi 0.3, drags 1/8, buoyancy 2)
+    # must be forwarded or the two sides run different physics. This test
+    # originally forwarded only rho0_face; it "passed" anyway because the
+    # pre-#35 mass-state bug (momentum temporally weighted, mass constant)
+    # pushed counts into the band - two defects cancelling. With matched
+    # parameters and the corrected mass state, the solver scores its best
+    # agreement ever (droplets 99 vs 94, bubbles 237 vs 259, 2026-10-11).
+    st_ports = {"st": 1, "st_seed": 7, "escape": 1, "rho0_face": 0.0,
+                "esc_phi": 0.3, "drag_droplet": 1.0, "drag_bubble": 8.0,
+                "buoyancy": 2.0}
     # rho0 must match the reference calibration
     cal = Sim(NX, NY, st=True)
     cal.seed(mask2)
@@ -71,6 +81,7 @@ def main():
           f"{diag3[:, 0].mean():.1f}, finite: {np.isfinite(fin).all()}")
     print("st 3D smoke:", "PASS" if ok3 else "FAIL")
     print("OVERALL:", "PASS" if ok and ok3 else "FAIL")
+    sys.exit(0 if ok and ok3 else 1)
 
 
 if __name__ == "__main__":

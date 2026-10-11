@@ -108,6 +108,7 @@ def main():
     print(f"escape mismatches: {mism}; max |diff| pos {dp:.3e}, vel {dv:.3e}")
     ok = pen_b == 0 and pen_p == 0 and mism <= 2 and dp < 2e-3 and dv < 5e-2
     print("SOLIDS LOCKSTEP:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

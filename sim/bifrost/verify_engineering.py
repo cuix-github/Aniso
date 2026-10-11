@@ -388,3 +388,4 @@ if __name__ == "__main__":
             print(f"===== {c}")
             results[c] = fn()
     print("OVERALL:", "PASS" if all(results.values()) else "FAIL")
+    sys.exit(0 if all(results.values()) else 1)
