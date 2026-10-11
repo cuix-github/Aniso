@@ -19,6 +19,3 @@ __pycache__/
 
 # Project-local CUDA toolkit, build caches, helper scripts (pipeline/setup_toolchain.py)
 .toolchain/
-results/droplet_frames/
-results/droplet_states/
-results/p2g/frames/

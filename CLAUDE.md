@@ -1,12 +1,14 @@
 # Working in Aniso
 
-Public repo: a C++ 3D-Gaussian-splatting renderer built from scratch, plus a
-two-phase PF-FLIP/ST-FLIP fluid solver implemented in Autodesk Bifrost through
-the PUBLIC SDK only. The two halves meet at milestone 7: a
-tsunami in a captured scene, simulated particles rendered as Gaussians. The
-current technical state, milestone by milestone, lives in `sim/README.md` —
-read it before touching the sim side; `sim/README.md`'s "Open questions" is
-kept current and supersedes anything older.
+Public repo: a C++ 3D-Gaussian-splatting renderer built from scratch (CPU
+reference renderer, CUDA port, walkable viewer, and the Maya-to-splats
+pipeline). Its sister repo, Anisim
+(github.com/cuix-github/Anisim), is the two-phase PF-FLIP/ST-FLIP fluid solver
+in Bifrost; it lived here under `sim/` until 2026-10-11 and moved out with its
+full history. The two meet at milestone 7: simulated particles rendered as
+Gaussians inside a captured scene, exchanged as per-frame `.npy` particle
+caches that Anisim writes and Aniso reads. Keep solver work in Anisim, with
+Anisim's own CLAUDE.md, and renderer work here.
 
 ## Hard walls
 
@@ -24,23 +26,19 @@ kept current and supersedes anything older.
   and often mid-session. The repo squash-merges: NEVER push onto a branch
   whose PR may have merged — check `gh pr view <N> --json state` first, and
   default to a fresh branch off `origin/main`. Issues and PRs share one
-  counter: always say "issue #N" or "PR #N".
-- Validation before features: the executable spec is
-  `sim/reference2d/pfflip2d.py`. Every solver feature ships with its gate —
-  unit lockstep against the spec, then a system gate through the real graph,
-  then physics anchors. Compatibility paths (nz=1, st=0, adapt=0, dump_every=1)
-  must stay bit-identical to what the old gates measured. When comparing the
-  C++ node against the python spec, feed the spec the float32-rounded inputs
-  the node's ports see, or boundary-straddling particles shift their stencils.
-- Measurement discipline: profile before optimizing (`PFFLIP_PROFILE=1` makes
-  the solver nodes print per-phase times to stderr). Difference the walls of
+  counter: always say "issue #N" or "PR #N", and name the repo when it could
+  be ambiguous ("Aniso PR #N", "Anisim PR #N").
+- Validate against an independent implementation, the way every renderer
+  step so far was proven: the loader against a numpy reader, the renderer
+  against gsplat (dB agreement on identical splats), the CUDA port against
+  the CPU renderer. A claim of correctness names what it was compared to.
+- Measurement discipline: profile before optimizing. Difference the walls of
   two run lengths so startup cancels. A profiling pie must close — slices sum
   to the measured total. Never combine measurements taken in different
-  pipeline configurations into one ratio; re-measure in the configuration
-  being decided about, and say so when a number is an estimate. Before/after
-  speed claims use the same machine, same state, same day — the canonical
-  profiling state is the mid-bore dump in `sim/bifrost/out/loop3_D_finale_c1/`.
-  Serialize timing runs; never overlap benchmarks.
+  configurations into one ratio; re-measure in the configuration being
+  decided about, and say so when a number is an estimate. Before/after speed
+  claims use the same machine, same scene, same day. Serialize timing runs;
+  never overlap benchmarks.
 - Comparison-experiment protocol (rules set 2026-10-11 after a
   dirty-worktree experiment compared a commit against itself and burned
   rounds chasing the contradiction). Non-negotiable, every A/B experiment:
@@ -56,24 +54,18 @@ kept current and supersedes anything older.
   contradictions are settled by diffing files instead of re-running; and
   (6) when two experiments contradict each other, audit the bench before
   theorizing about the physics.
-- The Bifrost boundary (2026-10-09): my dependence on
-  Bifrost is about whole-workflow smoothness in the Maya ecosystem, not about
-  any single stock node. So: Bifrost owns orchestration — graphs, ports,
-  scene integration, playback; custom SDK nodes own compute-heavy inner
-  loops. Stay on stock nodes until a measurement justifies custom code, then
-  move the arithmetic without disturbing the workflow.
 
 ## The machine
 
-Shared 5090 workstation with unbacked-up work on it. Heavy 3D runs go to
-background/bedtime; the background runner kills tasks around the one-hour
-mark, so long suites need chunked resume via full-state dumps. Watch disk:
-per-substep dumps once grew to 31 GB (the `dump_every` port now gates them);
-ask me before anything that grows tens of GB, and before deleting my data.
+Shared 5090 workstation with unbacked-up work on it. No host-wide installs:
+the CUDA toolkit and Python live inside the repo (`.toolchain/`, `.venv/`,
+set up by `pipeline/setup_toolchain.py`). Heavy runs go to background or
+bedtime; the background runner kills tasks around the one-hour mark. Ask me
+before anything that grows tens of GB, and before deleting my data.
 
 ## Working style
 
 Plain language; define a term the first time it is used. Show where each
-derived number came from. Explain intuition first. Demos: violent splash
-scenes only, simulations around 20 seconds not 5, honest compute clocks
-(startup excluded and labeled).
+derived number came from. Explain intuition first. When a step produces
+something worth seeing, say how to run it and what to expect to see. Demos
+use honest clocks (startup excluded and labeled).
