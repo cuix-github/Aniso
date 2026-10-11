@@ -125,6 +125,7 @@ def main():
     ok = (abs(vol_b - vol_p) < 1e-3 and abs(nb - np_) <= 0.005 * np_ and
           abs(cb - cp) <= 0.01 * max(cp, 1) and np.abs(com_b - com_p).max() < 0.05)
     print("ADAPTIVE NODE:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

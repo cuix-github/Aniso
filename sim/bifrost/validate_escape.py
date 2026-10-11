@@ -157,42 +157,17 @@ def loop():
     s0.seed(mask)
     s0.calibrate()
 
-    d = os.path.join(HERE, "out", "loop3_esc2d")
-    os.makedirs(d, exist_ok=True)
+    # Run through run_bifrost3, which supplies every state array the current
+    # graph expects. The old hand-rolled invocation predated the #35 graph
+    # and never set path_phase_st, so the phase state initialized empty and
+    # the node read every particle as air - the real cause of this check's
+    # post-#35 failure (the exit-code bug hid it until 2026-10-11).
     pos3 = np.concatenate([s0.pos, np.full((len(s0.pos), 1), 0.5)], 1).astype(np.float32)
     typ = s0.typ.copy()
-    mass = np.where(typ == 1, 1000.0, 1.0).astype(np.float32)
-    zeros = np.zeros(len(pos3), np.float32)
-
-    def lattice(ni, nj, nk):
-        i, j, k = np.meshgrid(np.arange(ni) + 0.5, np.arange(nj) + 0.5,
-                              np.arange(nk) + 0.5, indexing="ij")
-        return np.stack([i.ravel(), j.ravel(), k.ravel()], 1).astype(np.float32)
-
-    arrs = {"positions": pos3, "velocities": np.zeros_like(pos3),
-            "particle_phase": typ.astype(np.float32), "mass": mass,
-            "momx": zeros, "momy": zeros, "momz": zeros,
-            "probes_u": lattice(NX + 1, NY, 1), "probes_v": lattice(NX, NY + 1, 1),
-            "probes_w": lattice(NX, NY, 2)}
-    for k, v in arrs.items():
-        np.save(os.path.join(d, k + ".npy"), v)
-    args = [os.path.join(HERE, "run_sim_3d.bat"),
-            "--set-port", "nx", str(NX), "--set-port", "ny", str(NY),
-            "--set-port", "nz", "1", "--set-port", "dt", str(DT),
-            "--set-port", "substeps", str(sub), "--set-port", "preconditioner", "1",
-            "--set-port", "rho0_face", str(s0.rho0_face),
-            "--set-port", "pos_pattern", (d + "/frame.####").replace("\\", "/"),
-            "--set-port", "esc_pattern", (d + "/esc.####").replace("\\", "/"),
-            "--set-port", "diag_pattern", (d + "/diag.####").replace("\\", "/"),
-            "--set-port", "path_final_positions", (d + "/final.npy").replace("\\", "/")]
-    for k, v in ESC.items():
-        args += ["--set-port", k, str(v)]
-    for k in arrs:
-        args += ["--set-port", "path_" + k, os.path.join(d, k + ".npy").replace("\\", "/")]
-    res = subprocess.run(args, capture_output=True, text=True)
-    if res.returncode != 0 or not os.path.exists(os.path.join(d, f"frame.{sub - 1:04d}.npy")):
-        sys.stderr.write(res.stdout[-3000:] + res.stderr[-2000:])
-        raise SystemExit("bifcmd escape loop failed")
+    d, typ, _ = run_bifrost3(
+        "esc2d", NX, NY, 1, lambda x, y, z: mask(x, y), sub, DT,
+        extra_ports=dict(ESC, rho0_face=s0.rho0_face),
+        seed_fn=lambda nx, ny, nz, m: (pos3, s0.typ.copy()))
 
     # python twin at the same fixed dt from the same seed.
     sp = Sim(NX, NY, escape=True)
@@ -250,3 +225,4 @@ if __name__ == "__main__":
     if which in ("loop", "all"):
         ok = loop() and ok
     print("OVERALL:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)

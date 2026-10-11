@@ -250,3 +250,4 @@ if __name__ == "__main__":
         print("===", n)
         ok = SCENES[n]() and ok
     print("OVERALL:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)

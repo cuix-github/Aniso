@@ -69,6 +69,7 @@ def main():
     ok = (drift_b < 1e-6 and comp_b > 0.3 and abs(comp_b - comp_p) < 0.10 and
           0.9 < r.min() and r.max() < 1.1)
     print("ADAPTIVE LOOP:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
