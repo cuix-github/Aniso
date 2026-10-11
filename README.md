@@ -145,3 +145,5 @@ Each step ends in something that can be looked at and checked. They are tracked 
 5. A scene of our own: a real bowl, photographed, reconstructed with COLMAP and trained with gsplat, rendered here and matching gsplat's own render.
 
 After that the renderer becomes the base for pouring a simulated liquid into that captured bowl, and for a GPU version written in HIP.
+
+The liquid comes from the sister repository [Anisim](https://github.com/cuix-github/Anisim), a two-phase PF-FLIP/ST-FLIP solver in Bifrost. It began here under `sim/` and moved out on 2026-10-11 with its full history, so this repository stays the renderer. The two meet through per-frame particle caches (`.npy` positions, velocities, phase, escape flags, scale) that Anisim writes and Aniso renders as Gaussians.
