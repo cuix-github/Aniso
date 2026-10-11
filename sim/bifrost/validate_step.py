@@ -105,6 +105,7 @@ def main():
         ok &= err < 1e-3
         print(f"  max |bifrost - python| {name}: {err:.3e}  {verdict}")
     print("LOCKSTEP:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

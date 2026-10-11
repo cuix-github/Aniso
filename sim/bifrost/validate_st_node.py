@@ -142,6 +142,7 @@ def main():
     print(f"max |diff| positions {dp:.3e}, velocities {dv:.3e}")
     ok = mism <= 2 and dp < 2e-3 and dv < 5e-2
     print("ST NODE LOCKSTEP:", "PASS" if ok else "FAIL")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
