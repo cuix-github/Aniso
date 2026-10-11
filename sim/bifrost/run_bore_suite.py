@@ -81,7 +81,10 @@ def seed_no_solids(nx, ny, nz, mask, pmin, pmax):
 
 
 def render3d(pos, typ, nx, ny, nz, pmin, pmax, scale=None):
-    scale = scale or max(2, int(720 / (nx + nz)))
+    """Three-quarter view with per-pixel depth: particles paint far-to-near
+    into a z-buffer, then each box face paints only where it is nearer, so
+    water in front of a pillar covers it and water behind it is covered."""
+    scale = scale or max(2, int(1000 / (nx + nz)))
     yaw, pitch = np.radians(30), np.radians(18)
     cy_, sy_ = np.cos(yaw), np.sin(yaw)
     cp_, sp_ = np.cos(pitch), np.sin(pitch)
@@ -93,35 +96,42 @@ def render3d(pos, typ, nx, ny, nz, pmin, pmax, scale=None):
         xr = cy_ * x + sy_ * z
         zr = -sy_ * x + cy_ * z
         yr = cp_ * y - sp_ * zr
-        return xr, yr, cp_ * zr + sp_ * y
+        return xr, yr, cp_ * zr + sp_ * y   # larger depth value = nearer
 
     W = int((nx + nz) * 0.80 * scale // 2 * 2)
     H = int((ny + nz) * 0.85 * scale // 2 * 2)
-    im = Image.new("RGB", (W, H), (252, 252, 254))
-    d = ImageDraw.Draw(im)
-    for a, b in zip(pmin, pmax):
-        corners = np.array([[i, j, k] for i in (a[0], b[0]) for j in (a[1], b[1])
-                            for k in (a[2], b[2])])
-        cx, cy2, _ = project(corners)
-        px = (cx * scale + W / 2)
-        py = (H / 2 - cy2 * scale)
-        d.polygon(list(zip(px[[0, 1, 3, 2]], py[[0, 1, 3, 2]])), fill=(120, 124, 132))
-        d.polygon(list(zip(px[[2, 3, 7, 6]], py[[2, 3, 7, 6]])), fill=(98, 102, 110))
-        d.polygon(list(zip(px[[1, 3, 7, 5]], py[[1, 3, 7, 5]])), fill=(80, 84, 92))
+    img = np.full((H, W, 3), (252, 252, 254), np.uint8)
+    zbuf = np.full((H, W), -1e30)
+
     liq = pos[typ == 1]
     if len(liq) > 250000:
         liq = liq[:: len(liq) // 250000 + 1]
     x, y, depth = project(liq)
-    order = np.argsort(depth)
+    order = np.argsort(depth)                # far first, near last
     x, y, depth = x[order], y[order], depth[order]
     t = (depth - depth.min()) / max(depth.max() - depth.min(), 1e-9)
-    img = np.array(im)
     xi = np.clip((x * scale + W / 2).astype(int), 0, W - 2)
     yi = np.clip((H / 2 - y * scale).astype(int), 0, H - 2)
     col = np.stack([15 + 60 * t, 70 + 90 * t, 170 + 70 * t], 1).astype(np.uint8)
     for dx in (0, 1):
         for dy in (0, 1):
             img[yi + dy, xi + dx] = col
+            zbuf[yi + dy, xi + dx] = depth   # last write per pixel = nearest
+
+    for a, b in zip(pmin, pmax):
+        corners = np.array([[i, j, k] for i in (a[0], b[0]) for j in (a[1], b[1])
+                            for k in (a[2], b[2])], float)
+        cx, cy2, cd = project(corners)
+        px = cx * scale + W / 2
+        py = H / 2 - cy2 * scale
+        for quad, shade in (([0, 1, 3, 2], (120, 124, 132)),
+                            ([2, 3, 7, 6], (98, 102, 110)),
+                            ([1, 3, 7, 5], (80, 84, 92))):
+            m = Image.new("L", (W, H), 0)
+            ImageDraw.Draw(m).polygon(list(zip(px[quad], py[quad])), fill=1)
+            face = np.array(m, bool) & (cd[quad].mean() > zbuf)
+            img[face] = shade
+            zbuf[face] = cd[quad].mean()
     return Image.fromarray(img)
 
 
