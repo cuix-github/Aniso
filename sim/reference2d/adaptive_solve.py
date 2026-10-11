@@ -272,3 +272,86 @@ class Operator:
             rz = rz_new
         x -= x.mean()
         return x, it
+
+
+# ---- stage 2: multigrid on the adaptive hierarchy -------------------------
+
+def coarsen(cells):
+    """One hierarchy level up: every cell collapses into its parent (cells
+    already at the coarser level pass through as themselves). Grading is
+    preserved because all relative level differences are unchanged."""
+    out = {}
+    for (l, i, j) in cells:
+        out[(l + 1, i >> 1, j >> 1)] = True
+    return list(out.keys())
+
+
+class Multigrid:
+    """Flexible (Polak-Ribiere) PCG with a geometric V-cycle preconditioner
+    over the collapsed-quadtree hierarchy. Every level is a stage-1 Operator
+    assembled by the same variational rules, so the validated junction
+    treatment holds on all levels; transfers are the volume-integrated
+    naturals: residuals sum into parents, corrections inject into children.
+    Smoother and constants mirror the production 3D solver (damped Jacobi
+    omega = 0.8, 2+2 sweeps, 40 at the coarsest)."""
+
+    def __init__(self, cells, beta_face, max_levels=12, coarsest=64):
+        self.ops = [Operator(cells, beta_face)]
+        self.parent = []
+        level_cells = cells
+        while len(self.ops) < max_levels and len(level_cells) > coarsest:
+            coarse = coarsen(level_cells)
+            cmap = {c: k for k, c in enumerate(coarse)}
+            self.parent.append(np.array(
+                [cmap[(l + 1, i >> 1, j >> 1)] for (l, i, j) in level_cells],
+                np.int64))
+            self.ops.append(Operator(coarse, beta_face))
+            level_cells = coarse
+
+    def _smooth(self, op, x, b, sweeps):
+        dinv = np.where(op.diag > 0, 1.0 / np.maximum(op.diag, 1e-300), 0.0)
+        for _ in range(sweeps):
+            x += 0.8 * dinv * (b - op.matvec(x))
+        return x
+
+    def _vcycle(self, k, b):
+        op = self.ops[k]
+        x = np.zeros_like(b)
+        if k + 1 == len(self.ops):
+            return self._smooth(op, x, b, 40)
+        x = self._smooth(op, x, b, 2)
+        r = b - op.matvec(x)
+        bc = np.zeros(len(self.ops[k + 1].cells))
+        np.add.at(bc, self.parent[k], r)
+        x += self._vcycle(k + 1, bc)[self.parent[k]]
+        return self._smooth(op, x, b, 2)
+
+    def solve(self, b, tol=1e-9, max_iter=2000):
+        op = self.ops[0]
+        b = b - b.mean()
+        x = np.zeros_like(b)
+        r = b.copy()
+        z = self._vcycle(0, r)
+        d = z.copy()
+        rz = r @ z
+        r0 = max(np.sqrt(r @ r), 1e-300)
+        it = 0
+        for it in range(max_iter):
+            if np.sqrt(r @ r) / r0 < tol:
+                break
+            q = op.matvec(d)
+            dq = d @ q
+            if dq == 0.0:
+                break
+            a = rz / dq
+            x += a * d
+            r_prev = r.copy()
+            r -= a * q
+            z = self._vcycle(0, r)
+            rz_new = max(0.0, (r - r_prev) @ z)   # flexible: tolerates V-cycle
+            d = z + (rz_new / max(rz, 1e-300)) * d
+            rz = r @ z
+            if rz == 0.0:
+                break
+        x -= x.mean()
+        return x, it
