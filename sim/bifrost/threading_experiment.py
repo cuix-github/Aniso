@@ -300,13 +300,30 @@ def demo(exp):
     exp.result["per_substep_s"] = (rows[1]["wall_s"] - rows[0]["wall_s"]) / 147
 
 
+def demo_scene(nx, ny, nz):
+    """The demo's own obstacle layout (Xue, 2026-10-10): pillars mid-flume in
+    both x and z so the camera looks straight at the collisions, one taller
+    and one shorter, both thicker than the suite's. The validated bore-suite
+    scene is untouched - this variant exists for observation, not for gates."""
+    h1, h0, rx = 0.75 * ny, 0.125 * ny, 0.22 * nx
+    pmin = np.array([[0.46 * nx, 0.0, 0.38 * nz],
+                     [0.60 * nx, 0.0, 0.52 * nz]], np.float32)
+    pmax = np.array([[0.52 * nx, 0.55 * ny, 0.50 * nz],
+                     [0.66 * nx, 0.42 * ny, 0.64 * nz]], np.float32)
+
+    def mask(x, y, z):
+        return (y < h0) | ((x < rx) & (y < h1))
+    return mask, pmin, pmax
+
+
 def demo3d(exp):
-    from run_bore_suite import scene, seed_no_solids
-    shape = (64, 16, 32)
-    mask, pmin, pmax, *_ = scene(*shape)
+    from run_bore_suite import seed_no_solids
+    shape = (96, 24, 48)
+    mask, pmin, pmax = demo_scene(*shape)
     pos, typ = seed_no_solids(*shape, mask, pmin, pmax)
     inp = exp.inputs("demo_input", initial_state(shape, pos, typ, (pmin, pmax)))
     exp.result["demo_shape"] = shape
+    exp.result["demo_obstacles"] = [pmin.tolist(), pmax.tolist()]
     ports = dict(dt=0.12, st=1, adapt=1, escape=1, **calibration())
     rows = [exp.loop(f"demo_{n}", inp, shape, n, ports) for n in (20, 167)]
     exp.result["per_substep_s"] = (rows[1]["wall_s"] - rows[0]["wall_s"]) / 147
